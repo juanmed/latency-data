@@ -42,6 +42,7 @@ import google_streetview.api
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA as sklearnPCA
 
+from mpl_toolkits.mplot3d import Axes3D
 
 
 
@@ -459,6 +460,44 @@ def getSurroundingAntennas(p, r, a):
 		#print d
 	return count 
 
+# get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
+# 'a' is a dataframe containing the position of all antennas in lat,lon
+# the distance is calculated using a simple approximation: the eart is flat  between the 2 points
+def getSurroundingBuildings(p, r, a):
+	count = 0
+	for (lat,lon)in zip(a['lat'],a['lon']):
+		c = 2*np.pi/360.0  # degree to radian
+		arc = np.sqrt( (lat-p[0])**2  + (lon-p[1])**2 )*c  #convert to radian
+		d = R*arc    # distance = radius*arc
+		if(d<=r):
+			count = count + 1
+		#print d
+	return count
+
+
+def getSurroundingBuilding_AvgHeight(p, r, a):
+	count = 0
+	cum_height = 0
+	avg_height = 0
+	for (lat,lon,h) in zip(a['lat'],a['lon'], a['height']):
+		c = 2*np.pi/360.0  # degree to radian
+		arc = np.sqrt( (lat-p[0])**2  + (lon-p[1])**2 )*c  #convert to radian
+		d = R*arc    # distance = radius*arc
+		if(d<=r):
+			count = count + 1
+			cum_height = cum_height + h
+		#print d
+
+	# careful with zero division
+	# if there are no buildings around (count = 0), then 
+	# the average building height is 0, of course
+	if(count != 0):
+		avg_height = cum_height/(count*1.0)
+	else:
+		avg_height = 0
+
+	return avg_height
+
 
 # calculate covariance
 def cov():
@@ -572,9 +611,9 @@ clog['seq'] = np.arange(0,len(clog['seq']),1)+init
 drop_rate = getDropRate(log_raw)
 
 # Graph and save images
-save_fig = 1
-doplot = 1
-dohist=1
+save_fig = 1 	#always set to 1 so report generatino works
+doplot = 1   #always set to 1 so report generatino works
+dohist= 1    # always set to 1 so report generation works
 data_dic = drawGraphs(data_dic)
 
 plt.close('all')
@@ -615,11 +654,13 @@ gps_lat_cam3 = alignGPSandLatency(cam3, track_datapoints, opt)
 #		IMPORT AND DRAW GIS DATA
 #
 #///////////////////////////////////////////
+print("\n---------- IMPORT GEOJSON DATA --------------")
 
 
 # import geojson file
 #admin = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_admin.geojson')
-buildings = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_buildings.geojson')
+buildings = gpd.read_file("maps/buildings/Buildings_University2.geojson")
+#buildings = buildings[ buildings['HEIGHT'] > 0.0 ]
 #places = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_places.geojson')
 #roads = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads.geojson')
 #roads_gen0 = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads_gen0.geojson')
@@ -666,6 +707,8 @@ map3ax1.set_aspect('equal')
 #		CONVERT DATA TO MERCATOR FOR BASEMAP DISPLAY
 #
 #///////////////////////////////////////////
+
+print("\n---------- CONVERT DATA TO MERCATOR --------------")
 
 #admin = admin.to_crs(epsg=3857)
 buildings = buildings.to_crs(epsg=3857)
@@ -877,6 +920,11 @@ plt.close('all')
 #	- surrounding height vs latency
 #//////////////////////////////////////////
 
+print("\n---------- GENERATE DATA ANALYSIS GRAPHS --------------")
+
+
+#  ------------- SPEED, LATENCY VS TIME GRAPH -----------------
+
 ana1 = plt.figure(figsize=(20,10))
 #ana1.suptitle(" Data Analysis ")
 
@@ -901,6 +949,9 @@ ana1ax2.tick_params(axis='y', labelcolor='r')
 ana1ax2.legend(loc='upper right', shadow=True, fontsize='x-large')
 
 #ana1.tight_layout()
+
+#  ------------- SLATENCY VS SPEED GRAPH -----------------
+
 
 ana2 = plt.figure(figsize=(20,10))
 ana2.suptitle(" Data Analysis ")
@@ -944,17 +995,20 @@ ana2ax1.scatter(speed_centers, latency_avg, color ='r', label = 'avg latency')
 ana2ax1.legend(loc='upper right', shadow=True, fontsize='x-large')
 
 
+#  ------------- LATENCY VS ANTENNA INSIDE RADIUS -----------------
+
+
 # reduce antenna search data to reduce computation time
 #print("Antenas antes de cortar: "+str(len(antenna['lat'])))
-a = antenna[ antenna['x_merc'] <= (max_x+margin) ]
-a = a[ a['x_merc'] >= (min_x-margin) ]
-a = a[ a['y_merc'] <= (max_y+margin) ]
-a = a[ a['y_merc'] >= (min_y-margin) ]
+a = antenna[ antenna['x_merc'] <= (max_x+margin*2.0) ]
+a = a[ a['x_merc'] >= (min_x-margin*2.0) ]
+a = a[ a['y_merc'] <= (max_y+margin*2.0) ]
+a = a[ a['y_merc'] >= (min_y-margin*2.0) ]
 #print("Despues antes de cortar: "+str(len(a['lat'])))
 
 
 # search radius for sorrounding antennas
-r = 50
+r = 100
 data_dic['r']=r
 test = gps_lat_all[0:50]
 gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, a),gps_lat_all['lat'],gps_lat_all['lon'])
@@ -965,8 +1019,65 @@ ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
 ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
 ana3ax1.set_xlabel(" Number of Antennas {}")
 ana3ax1.set_ylabel(" Latency {ms}")
+#ana3ax1.set_xlim(-1,)
 
 
+#  ------------- LATENCY VS BUILDING DENSITY GRAPH -----------------
+
+# get building centroids. They will be used to represent the position of the 
+# building
+b_cents = pd.DataFrame()
+# reconvert buildings data to EPSG4326....remember I converted before to Mercator
+buildings = buildings.to_crs(epsg=4326)
+
+
+# get latitude and longiute separated
+b_cents["lon"] = buildings.centroid.map(lambda p: p.x)
+b_cents["lat"] = buildings.centroid.map(lambda p: p.y)
+b_cents["height"] = buildings['HEIGHT']
+#print("Buildings antes de cortar: "+str(b_cents.shape))
+
+# reduce building search area to reduce computation time
+#print("Antenas antes de cortar: "+str(len(antenna['lat'])))
+margin_epsg4326 = 0.005
+#print("route lon range: "+str((min_lon-margin_epsg4326*2))+", "+str((max_lon+margin_epsg4326*2)))
+#print("route lat range: "+str((min_lat-margin_epsg4326*2))+", "+str((max_lat+margin_epsg4326*2)))
+
+#print("b cents lon range: "+str(min(b_cents["lon"]))+", "+str(max(b_cents["lon"])))
+#print("b cents lat range: "+str(min(b_cents["lat"]))+", "+str(max(b_cents["lat"])))
+
+
+bc = b_cents[ b_cents["lon"] <= (max_lon+margin_epsg4326*2) ]
+bc = bc[ bc["lon"] >= (min_lon-margin_epsg4326*2) ]
+bc = bc[ bc["lat"] <= (max_lat+margin_epsg4326*2) ]
+bc = bc[ bc["lat"] >= (min_lat-margin_epsg4326*2) ]
+#print("Buildings despues de cortar: "+str(bc.shape))
+
+#get the number of surroinding buildings for each point
+gps_lat_all['buildings'] = map(lambda x,y: getSurroundingBuildings([x,y], r, bc),gps_lat_all['lat'],gps_lat_all['lon'])
+
+ana4 = plt.figure(figsize=(20,10))
+ana4ax1 = ana4.add_subplot(1,1,1)
+ana4ax1.set_title(" Latency {ms} vs Number of Buildings in radius of "+str(r)+" m")
+ana4ax1.scatter(gps_lat_all['buildings'], gps_lat_all[lat_col], color = 'c')
+ana4ax1.set_xlabel(" Number of Buildings {}")
+ana4ax1.set_ylabel(" Latency {ms}")
+#ana4ax1.set_xlim(-1,300)
+
+#  ------------- LATENCY VS AVERAGE BUILDING HEIGHT GRAPH-----------------
+
+gps_lat_all['avg_build_height'] = map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, bc),gps_lat_all['lat'],gps_lat_all['lon'])
+
+ana5 = plt.figure(figsize=(20,10))
+ana5ax1 = ana5.add_subplot(1,1,1)
+ana5ax1.set_title(" Latency {ms} vs Avg Height of Buildings in radius of "+str(r)+" m")
+ana5ax1.scatter(gps_lat_all['avg_build_height'], gps_lat_all[lat_col], color = 'm')
+ana5ax1.set_xlabel(" AVG Building Height {m}")
+ana5ax1.set_ylabel(" Latency {ms}")
+
+
+
+#  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
 
 ana1.savefig(save_dir+file_name+"_lat_time_speed_all.jpg")
 ana2.savefig(save_dir+file_name+"_lat_speed_all.jpg")
@@ -988,6 +1099,9 @@ plt.close('all')
 #               PLOT DATA IN MPLLEAFLET
 #
 # ////////////////////////////////////////
+print("\n---------- PLOT DATA IN MPLLEAFLET --------------")
+
+
 
 #Plot color bars first
 rect = 0.1,0.05,0.45,0.9
@@ -1077,6 +1191,8 @@ if(args.y == "5"):
 	colores = getColorMap(gps_lat_all[lat_col])
 	map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)
 	map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	map5ax1.scatter(bc['lon'], bc['lat'], color = 'green', marker='*', s = s2)
+
 
 if(args.y == "0"):
 	map0 = plt.figure(figsize=(20,10))
@@ -1122,6 +1238,7 @@ if(args.y == "3"):
 # show Graphs in screen
 #plt.show()
 
+plt.close('all')
 
 
 # ////////////////////////////////////////
@@ -1129,6 +1246,9 @@ if(args.y == "3"):
 #               CREATE REPORT FILE
 #
 # ////////////////////////////////////////
+
+print("\n---------- CREATE REPORT FILE --------------")
+
 
 date = str(gps_lat_all.index.values[0])
 data_dic["date"]=date
@@ -1155,6 +1275,8 @@ myfile.close()
 #               GET GOOGLE STREET VIEW IMAGES
 #
 # ////////////////////////////////////////
+
+print("\n---------- GET GOOGLE STREET VIEW IMAGES --------------")
 
 
 
@@ -1224,17 +1346,29 @@ for im in panoids:
 #
 # ////////////////////////////////////////
 
-data1 = gps_lat_all.loc[:,['lat','lon',lat_col,'antennas','speed','ele']]
+print("\n---------- TRY TO RECOGNIZE PATTERNS --------------")
 
-print(data1.head())
-print(data1.cov())
 
-data = data1.loc[:,['lat','lon',lat_col,'antennas','speed','ele']].values
+
+
+
+data1 = gps_lat_all.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height', lat_col]]
+
+#print(data1.head())
+#print(data1.cov())
+
+#data = data1.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height']].values
+data = data1.loc[:,['antennas','speed','ele','buildings','avg_build_height']].values
+
+#print(data[0:5])
+print(data.shape[1])
 #y = gps_lat_all.iloc[:,'latency'].values
 data_std = StandardScaler().fit_transform(data)
 
+#data_std = data
+
 # get covariance matrix, pass transpose of data because that is what np.cov expects
-cov = np.cov(data.T)
+cov = np.cov(data_std.T)
 # get eigen values and vectors
 eig_vals, eig_vecs = np.linalg.eig(cov)
 #print('Eigen Values {}'.format(eig_vals))
@@ -1271,21 +1405,26 @@ figk = plt.figure(figsize=(20,10))
 ax2 = figk.add_subplot(1,1,1)
 
 # Make transformation matrix
-matrix_w = eig_pairs[0][1].reshape(len(data1.columns),1)
-#matrix_w = np.hstack((eig_pairs[0][1].reshape(len(data1.columns),1), eig_pairs[1][1].reshape(len(data1.columns),1)))
+#matrix_w = eig_pairs[0][1].reshape(5,1)
+matrix_w = np.hstack((eig_pairs[0][1].reshape(data_std.shape[1],1), eig_pairs[1][1].reshape(data_std.shape[1],1)))
+matrix_w2 = np.hstack((eig_pairs[0][1].reshape(data_std.shape[1],1), eig_pairs[1][1].reshape(data_std.shape[1],1),eig_pairs[2][1].reshape(data_std.shape[1],1) ))
+
 print("Transformation")
 print(matrix_w)
 
 # Reproject data
 y = data_std.dot(matrix_w)
+y2 = data_std.dot(matrix_w2)
 print("Reprojected")
 print(y[0:5])
 # use this cmap
 name = 'RdYlGn'
 color_map=plt.get_cmap(name)
 colores = getColorMap(data1[lat_col])
-ax2.scatter(y[:,0], [0]*len(y[:,0]), color = colores)
-#ax2.scatter(y[:,0],y[:,1], color = colores)
+#ax2.scatter(y[:,0], [0]*len(y[:,0]), color = colores)
+ax2.scatter(y[:,0],y[:,1], color = colores)
+# R-G-B Scatter
+
 
 
 
@@ -1299,6 +1438,27 @@ norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 cb5 = mpl.colorbar.ColorbarBase(colbar, cmap=color_map, norm=norm, orientation='vertical')
 cb5.set_label('Latency {ms}')
 cb5.set_ticks(ticks)
+
+
+window = plt.figure(figsize=(20,10))
+
+ax5 = window.add_subplot(1,1,1, projection='3d')
+ax5.scatter(y2[:,0],y2[:,1], y2[:,2], color = colores)
+ax5.set_xlabel('PC1')
+ax5.set_ylabel('PC2')
+ax5.set_zlabel('PC3')
+
+#Plot color bar
+colbar2 = window.add_axes(rect)
+cb6 = mpl.colorbar.ColorbarBase(colbar2, cmap=color_map, norm=norm, orientation='vertical')
+cb6.set_label('Latency {ms}')
+cb6.set_ticks(ticks)
+
+#print (buildings.head(2))
+#index_pos = buildings.index.values[0]
+#print (buildings.at[index_pos,'geometry'])
+#print (buildings.columns)
+
 
 
 plt.show()
