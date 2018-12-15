@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.dates as mdates
+from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import argparse
 from datetime import timedelta
@@ -1249,20 +1250,79 @@ ana5ax1.set_xlabel(" AVG Building Height {m}")
 ana5ax1.set_ylabel(" Latency {ms}")
 
 """
+#  ------------- Latency vs Velocity Histogram -----------------
+print("\n---------- DRAW LATENCY VS SPEED HISTOGRAM --------------")
+
+plt.close('all')
+
+
+ana6 = plt.figure(figsize=(20,10))
+ana6ax1 = ana6.add_subplot(1,1,1, projection='3d')
+ana6ax1.set_title("Latency vs Velocity Histogram")
+
+latency_min = min(gps_lat_all[lat_col])
+latency_max = max(gps_lat_all[lat_col])
+hist_lv, xedges, yedges = np.histogram2d(gps_lat_all['speed'], gps_lat_all[lat_col], bins=(32,32), range=[[speed_min, speed_max], [latency_min, latency_max]])
+#hist_rb, xedges, yedges = np.histogram2d(channels[0].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
+#hist_gb, xedges, yedges = np.histogram2d(channels[1].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
+
+print("hist_rg: "+str(hist_lv)+" shape: "+str(hist_lv.shape)+"len: "+str(len(hist_lv))+"\n")
+print("xedges: "+str(xedges)+" shape: "+str(xedges.shape)+"len: "+str(len(xedges))+"\n")
+print("yedges: "+str(yedges)+" shape: "+str(yedges.shape)+"len: "+str(len(yedges))+"\n")
+
+
+
+# Construct arrays for the anchor positions of the 16 bars.
+#xpos, ypos = np.meshgrid(xedges[:-1] + 1, yedges[:-1] +1, indexing="ij")
+xpos, ypos = np.meshgrid(xedges[:-1]+xedges[1:], yedges[:-1]+yedges[1:])
+
+
+xpos = xpos.flatten()/2.
+ypos = ypos.flatten()/2.
+zpos = np.zeros_like(xpos)
+
+print("xpos: "+str(xpos)+" shape: "+str(xpos.shape)+"len: "+str(len(xpos))+"\n")
+print("ypos: "+str(ypos)+" shape: "+str(ypos.shape)+"len: "+str(len(ypos))+"\n")
+print("zpos: "+str(zpos)+" shape: "+str(zpos.shape)+"len: "+str(len(zpos))+"\n")
+
+
+# Construct arrays with the dimensions for the 16 bars.
+dx = xedges[1]-xedges[0]
+dy = yedges[1]-yedges[0]
+dz = hist_lv.flatten()
+print("dx: "+str(dx))
+print("dy: "+str(dy))
+print("dz: "+str(dz)+" shape: "+str(dz.shape)+"len: "+str(len(dz))+"\n")
+
+cmap = plt.get_cmap('jet') # Get desired colormap - you can change this!
+max_height = np.max(dz)   # get range of colorbars so we can normalize
+min_height = np.min(dz)
+# scale each z to [0,1], and get their rgb values
+colors = [cmap((k-min_height)/max_height) for k in dz] 
+#print colors
+print len(colors)
+ana6ax1.bar3d(xpos, ypos, zpos, dx, dy, dz, color=colors, zsort='average')
+ana6ax1.set_xlabel("Speed {km/h}")
+ana6ax1.set_ylabel("Latency {ms}")
+
 
 #  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
 
 ana1.savefig(save_dir+file_name+"_lat_time_speed_all.jpg")
 ana2.savefig(save_dir+file_name+"_lat_speed_all.jpg")
 #ana3.savefig(save_dir+file_name+"_lat_antennas_all.jpg")
+ana6.savefig(save_dir+file_name+"latency_speed_hist.jpg")
+
 
 data_dic["latency_speed_time"] = file_name+"_lat_time_speed_all.jpg"
 data_dic["latency_speed"] = file_name+"_lat_speed_all.jpg"
 #data_dic["latency_antennas"] = file_name+"_lat_antennas_all.jpg"
 #data_dic["lat_gps_cam2"] = file_name+"_latency_map_cam2.jpg"
 #data_dic["lat_gps_cam3"] = file_name+"_latency_map_cam3.jpg"
+data_dic["latency_speed_hist"] = file_name+"latency_speed_hist.jpg"
 
-#plt.show()
+
+plt.show()
 
 plt.close('all')
 

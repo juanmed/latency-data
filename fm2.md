@@ -68,4 +68,6 @@ Map | Index
 <img src = "{latency_speed_time}">
 ### Latency vs Velocity
 <img src = "{latency_speed}">
+### Latency vs Speed Histogram
+<img src = "{latency_speed_hist}">
 
