@@ -19,4 +19,14 @@ QGIS can handle both the Shapefile -> GeoJson conversion and the EPSG5174 -> EPS
 https://drive.google.com/file/d/15JKM75mSgjTcMD5sUHLGltRZTeSqPjOV/view
 
 and overwriting the in the folder QGIS_HOME\apps\qgis\resources\ . Then when you import the shapefile files in QGIS and asked to define the CRS for the file, filter by "korea" and select ESPG5174 Korean Central Belt. Now QGIS will have all the information for later conversion to EPSG4326.
+
+This script will probably only run in Ubuntu. To run it, save logAnalysis.py, and the log files in a folder in the same directory. Then use the following command:
+
+python logAnalysis.py -f [path_to_log_file] -g [path_to_gpx_file] -r [video_resolution, eg 1280x720p] -t [Test_name] -a [path_to_track_image] -k [path_to_speed_image] -x [log_file_format(1,2 or 3)] -y [number_of_camera_to_draw_latency_map_for]
+
+Example
+
+ python logAnalysis.py -f 20181214/20181214B/2018_12_14_07_10_42.txt -r 1280x720 -t 20181214_TestA -a route.jpg -k speed.png -x 3 -y 1
+
+
  
