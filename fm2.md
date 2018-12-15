@@ -21,16 +21,19 @@
 |1|{cam1_min:.2f}|{cam1_max:.2f}|{cam1_avg:.2f}|{cam1_std:.2f}|
 |2|{cam2_min:.2f}|{cam2_max:.2f}|{cam2_avg:.2f}|{cam2_std:.2f}|
 |3|{cam3_min:.2f}|{cam3_max:.2f}|{cam3_avg:.2f}|{cam3_std:.2f}|
+|4|{cam4_min:.2f}|{cam4_max:.2f}|{cam4_avg:.2f}|{cam4_std:.2f}| 
 <img src = "{data_image_path}">
 <!-- pagebreak -->
 <img src = "{latency_cam0}">
 <img src = "{latency_cam1}">
 <img src = "{latency_cam2}">
 <img src = "{latency_cam3}">
+<img src = "{latency_cam4}">
 <img src = "{hist_cam0}">
 <img src = "{hist_cam1}">
 <img src = "{hist_cam2}">
 <img src = "{hist_cam3}">
+<img src = "{hist_cam4}">
 <!-- pagebreak -->
 
 ## Latency over Route
@@ -55,6 +58,10 @@ Map | Index
 Map | Index
 :-------------------------:|:-------------------------:
 ![](latency_map_cam3.png)  |  ![]({latency_map_cam3_colorbar})
+### Maximum Latency Camera 4
+Map | Index
+:-------------------------:|:-------------------------:
+![](latency_map_cam4.png)  |  ![]({latency_map_cam4_colorbar})
 
 <!-- pagebreak -->
 ### Latency, Velocity vs Time
