@@ -1087,6 +1087,7 @@ print("\n---------- GENERATE DATA ANALYSIS GRAPHS --------------")
 
 
 #  ------------- SPEED, LATENCY VS TIME GRAPH -----------------
+print("\n---------- SPEED, LATENCY VS TIME GRAPH --------------")
 
 ana1 = plt.figure(figsize=(20,10))
 #ana1.suptitle(" Data Analysis ")
@@ -1114,7 +1115,7 @@ ana1ax2.legend(loc='upper right', shadow=True, fontsize='x-large')
 #ana1.tight_layout()
 
 #  ------------- LATENCY VS SPEED GRAPH -----------------
-
+print("\n---------- LATENCY VS SPEED GRAPH --------------")
 
 ana2 = plt.figure(figsize=(20,10))
 
@@ -1166,7 +1167,7 @@ ana2ax1.legend(loc='upper right', shadow=True, fontsize='x-large')
 #  ------------- LATENCY VS ANTENNA INSIDE RADIUS -----------------
 print("\n---------- LATENCY VS ANTENNA INSIDE RADIUS --------------")
 
-"""
+
 # reduce antenna search data to reduce computation time
 #print("Antenas antes de cortar: "+str(len(antenna['lat'])))
 a = antenna[ antenna['x_merc'] <= (max_x+margin*2.0) ]
@@ -1176,20 +1177,36 @@ a = a[ a['y_merc'] >= (min_y-margin*2.0) ]
 #print("Despues antes de cortar: "+str(len(a['lat'])))
 
 
-# search radius for sorrounding antennas
-r = 100
-data_dic['r']=r
-test = gps_lat_all[0:50]
-gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, a),gps_lat_all['lat'],gps_lat_all['lon'])
+# search radius for surrounding antennas
 
-ana3 = plt.figure(figsize=(20,10))
-ana3ax1 = ana3.add_subplot(1,1,1)
-ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
-ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
-ana3ax1.set_xlabel(" Number of Antennas {}")
-ana3ax1.set_ylabel(" Latency {ms}")
-#ana3ax1.set_xlim(-1,)
+r_search = [100,200,300,400,500]
+r_names = ["r0", "r1", "r2", "r3", "r4"]
+for (rname, r) in zip(r_names,r_search):
+	#data_dic['r']=r
+	test = gps_lat_all[0:50]
+	gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, a),gps_lat_all['lat'],gps_lat_all['lon'])
+
+	ana3 = plt.figure(figsize=(20,10))
+	ana3ax1 = ana3.add_subplot(1,1,1)
+	ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
+	ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
+	ana3ax1.set_xlabel(" Number of Antennas {}")
+	ana3ax1.set_ylabel(" Latency {ms}")
+	#ana3ax1.set_xlim(-1,)
+	ana3.savefig(save_dir+file_name+"_latency_antenna_in_radius_"+str(r)+".jpg")
+
+	data_dic["latency_antenna_in_radius_"+rname] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
+
+#data_dic["latency_antenna_in_radius_"+str(r)] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
 """
+data_dic["r0"] = r_search[0]
+data_dic["r1"] = r_search[1]
+data_dic["r2"] = r_search[2]
+data_dic["r3"] = r_search[3]
+data_dic["r4"] = r_search[4]
+"""
+
+
 
 #  ------------- LATENCY VS BUILDING DENSITY GRAPH -----------------
 print("\n---------- LATENCY VS BUILDING DENSITY GRAPH --------------")
@@ -1258,52 +1275,38 @@ plt.close('all')
 
 ana6 = plt.figure(figsize=(20,10))
 ana6ax1 = ana6.add_subplot(1,1,1, projection='3d')
-ana6ax1.set_title("Latency vs Velocity Histogram")
+ana6ax1.set_title("Latency vs Speed Histogram")
 
 latency_min = min(gps_lat_all[lat_col])
 latency_max = max(gps_lat_all[lat_col])
-hist_lv, xedges, yedges = np.histogram2d(gps_lat_all['speed'], gps_lat_all[lat_col], bins=(32,32), range=[[speed_min, speed_max], [latency_min, latency_max]])
+hist_lv, xedges, yedges = np.histogram2d(gps_lat_all[lat_col],gps_lat_all['speed'], bins=(32,32), range=[ [latency_min, latency_max],[speed_min, speed_max]])
 #hist_rb, xedges, yedges = np.histogram2d(channels[0].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
 #hist_gb, xedges, yedges = np.histogram2d(channels[1].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
 
-print("hist_rg: "+str(hist_lv)+" shape: "+str(hist_lv.shape)+"len: "+str(len(hist_lv))+"\n")
-print("xedges: "+str(xedges)+" shape: "+str(xedges.shape)+"len: "+str(len(xedges))+"\n")
-print("yedges: "+str(yedges)+" shape: "+str(yedges.shape)+"len: "+str(len(yedges))+"\n")
-
-
-
 # Construct arrays for the anchor positions of the 16 bars.
 #xpos, ypos = np.meshgrid(xedges[:-1] + 1, yedges[:-1] +1, indexing="ij")
-xpos, ypos = np.meshgrid(xedges[:-1]+xedges[1:], yedges[:-1]+yedges[1:])
+xpos, ypos = np.meshgrid( yedges[:-1]+yedges[1:], xedges[:-1]+xedges[1:])
 
 
 xpos = xpos.flatten()/2.
 ypos = ypos.flatten()/2.
 zpos = np.zeros_like(xpos)
 
-print("xpos: "+str(xpos)+" shape: "+str(xpos.shape)+"len: "+str(len(xpos))+"\n")
-print("ypos: "+str(ypos)+" shape: "+str(ypos.shape)+"len: "+str(len(ypos))+"\n")
-print("zpos: "+str(zpos)+" shape: "+str(zpos.shape)+"len: "+str(len(zpos))+"\n")
 
 
 # Construct arrays with the dimensions for the 16 bars.
 dx = xedges[1]-xedges[0]
 dy = yedges[1]-yedges[0]
 dz = hist_lv.flatten()
-print("dx: "+str(dx))
-print("dy: "+str(dy))
-print("dz: "+str(dz)+" shape: "+str(dz.shape)+"len: "+str(len(dz))+"\n")
 
 cmap = plt.get_cmap('jet') # Get desired colormap - you can change this!
 max_height = np.max(dz)   # get range of colorbars so we can normalize
 min_height = np.min(dz)
 # scale each z to [0,1], and get their rgb values
 colors = [cmap((k-min_height)/max_height) for k in dz] 
-#print colors
-print len(colors)
-ana6ax1.bar3d(xpos, ypos, zpos, dx, dy, dz, color=colors, zsort='average')
-ana6ax1.set_xlabel("Speed {km/h}")
-ana6ax1.set_ylabel("Latency {ms}")
+ana6ax1.bar3d(ypos, xpos, zpos, dx, dy, dz, color=colors, zsort='average')
+ana6ax1.set_ylabel("Speed {km/h}")
+ana6ax1.set_xlabel("Latency {ms}")
 
 
 #  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
@@ -1432,7 +1435,7 @@ if(args.y == "5"):
 	map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
 	map5ax1.set_aspect('equal')
 	print("Drawing Latency Map for All Cameras")
-	gps_lat_all = gps_lat_all.sort_values(by=[lat_col])
+	gps_lat_all = gps_lat_all.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_all[lat_col])
 	map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)
 	map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
@@ -1444,7 +1447,7 @@ if(args.y == "0"):
 	map0ax1 = map0.add_subplot(1,1,1)
 	map0ax1.set_aspect('equal')
 	print("Drawing Latency Map for Camera 0")
-	gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col])
+	gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_cam0[lat_col])
 	map0ax1.scatter(gps_lat_cam0['lon'], gps_lat_cam0['lat'], color = colores, s = s1, alpha = alpha)
 	map0ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
@@ -1454,7 +1457,7 @@ if(args.y == "1"):
 	map1ax1 = map1.add_subplot(1,1,1)
 	map1ax1.set_aspect('equal')
 	print("Drawing Latency Map for Camera 1")
-	gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col])
+	gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_cam1[lat_col])
 	map1ax1.scatter(gps_lat_cam1['lon'], gps_lat_cam1['lat'], color = colores, s = s1, alpha = alpha)
 	map1ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
@@ -1464,7 +1467,7 @@ if(args.y == "2"):
 	map2ax1 = map2.add_subplot(1,1,1)
 	map2ax1.set_aspect('equal')
 	print("Drawing Latency Map for Camera 2")
-	gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col])
+	gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_cam2[lat_col])
 	map2ax1.scatter(gps_lat_cam2['lon'], gps_lat_cam2['lat'], color = colores, s = s1, alpha = alpha)
 	map2ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
@@ -1474,7 +1477,7 @@ if(args.y == "3"):
 	map3ax1 = map3.add_subplot(1,1,1)
 	map3ax1.set_aspect('equal')
 	print("Drawing Latency Map for Camera 3")
-	gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col])
+	gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_cam3[lat_col])
 	map3ax1.scatter(gps_lat_cam3['lon'], gps_lat_cam3['lat'], color = colores, s = s1, alpha = alpha)
 	map3ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
@@ -1484,7 +1487,7 @@ if(args.y == "4"):
 	map4ax1 = map4.add_subplot(1,1,1)
 	map4ax1.set_aspect('equal')
 	print("Drawing Latency Map for Camera 3")
-	gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col])
+	gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col],ascending=False)
 	colores = getColorMap(gps_lat_cam4[lat_col])
 	map4ax1.scatter(gps_lat_cam4['lon'], gps_lat_cam4['lat'], color = colores, s = s1, alpha = alpha)
 	map4ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)

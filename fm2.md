@@ -64,10 +64,17 @@ Map | Index
 ![](latency_map_cam4.png)  |  ![]({latency_map_cam4_colorbar})
 
 <!-- pagebreak -->
-### Latency, Velocity vs Time
+### Latency, Speed vs Time
 <img src = "{latency_speed_time}">
-### Latency vs Velocity
+### Latency vs Speed
 <img src = "{latency_speed}">
 ### Latency vs Speed Histogram
 <img src = "{latency_speed_hist}">
+### Latency vs Antennas inside various radii
+<img src = "{latency_antenna_in_radius_r0}">
+<img src = "{latency_antenna_in_radius_r1}">
+<img src = "{latency_antenna_in_radius_r2}">
+<img src = "{latency_antenna_in_radius_r3}">
+<img src = "{latency_antenna_in_radius_r4}">
+
 
