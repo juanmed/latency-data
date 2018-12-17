@@ -74,14 +74,6 @@ def forward_propagation(i_pdf, states, st_matrix, em, e_pdf, obs,  T, c):
 	T = total number of time steps
 	"""
 	if (T == 0):
-		# select the initial state as the one with biggest
-		# probability
-		isp = max(i_pdf)
-		state_index = np.argwhere(i_pdf==isp)[0]
-		i_state = states[state_index][0]
-		print("Selected: "+str(i_state)+" with prob: "+str(isp))
-
-
 		# based on the state provided calculate its probability
 		state_index = np.argwhere( states == c)[0]
 		isp = i_pdf[state_index][0]
@@ -91,22 +83,95 @@ def forward_propagation(i_pdf, states, st_matrix, em, e_pdf, obs,  T, c):
 		# but first find the index of this emission
 		em_index =  np.argwhere(em == obs.at[T])[0]
 		# with these index and the state, the probability can be retrieved
-		iep = e_pdf[state_index][em_index]
-		print("Selected: "+str(obs.at[T])+" with prob: {:.4f}".format(iep))
-		print(isp*iep)
-		return (i_state,isp*iep)
+		iep = e_pdf[state_index][0][em_index][0]
+		#print("["+str(T)+"] State : "+c+" {:.4f} ".format(isp)+" , Emi: "+str(obs.at[T])+" {:.4f}".format(iep))
+		# calculate initial prob
+		a_i = isp*iep
+		return (a_i)
 	else:
 		# get cumulative prob
-		a = 0.0
+		sums = 0.0
+		current_state_index = np.argwhere(states==c)[0]
 		for s in states:
-			(prev_s, a) = forward_propagation(i_pdf, states, st_matrix, em, e_pdf, obs,  T-1, s)
+			a = forward_propagation(i_pdf, states, st_matrix, em, e_pdf, obs,  T-1, s)
 			# retrieve transition probability
-			prev_state_index = np.argwhere(states==prev_s)[0]
-			current_state_index = np.argwhere(states==s)[0]
-			aij = st_matrix[prev_state_index][current_state_index]
+			prev_state_index = np.argwhere(states==s)[0]
+			aij = st_matrix[prev_state_index][0][current_state_index][0]
 			# calculate past probability
-			a = a*aij
-		# get emission prob for current
+			sums = sums + a*aij
+		# get index for emmision at time T	
+		em_index =  np.argwhere(em == obs.at[T])[0]	
+		# with these index and the state, the 
+		# emision probability can be retrieved
+		ep = e_pdf[current_state_index][0][em_index][0]
+		# get emission prob for current sate
+		a_t = sums * ep
+		#print("["+str(T)+"] State : "+c+" {:.4f} ".format(sums)+" , Emi: "+str(obs.at[T])+" {:.4f}".format(ep))
+		return (a_t)
+
+def viterbi(i_pdf, states, st_matrix, em, e_pdf, obs,  T, c):
+	"""
+	Forward propagation algorithm
+	initial_pdf = initial prob distribution of states
+	st_matrix = state transition st_matrix
+	e_pdf = emission probability distribution
+	obs = observations
+	T = total number of time steps
+	"""
+	global optimal_states
+
+	if (T == 0):
+		# based on the state provided calculate its probability
+		state_index = np.argwhere( states == c)[0]
+		isp = i_pdf[state_index][0]
+
+		# now given the first observation
+		# find its probability given the initial state
+		# but first find the index of this emission
+		em_index =  np.argwhere(em == obs.at[T])[0]
+		# with these index and the state, the probability can be retrieved
+		iep = e_pdf[state_index][0][em_index][0]
+		#print("["+str(T)+"] State : "+c+" {:.4f} ".format(isp)+" , Emi: "+str(obs.at[T])+" {:.4f}".format(iep))
+		# calculate initial prob
+		delta_i = isp*iep
+		return (delta_i)
+	else:
+		# get highest path probability
+		best_path = 0.0
+		optimal_state = "None"
+		current_state_index = np.argwhere(states==c)[0]
+		for s in states:
+			a = viterbi(i_pdf, states, st_matrix, em, e_pdf, obs,  T-1, s)
+			# retrieve transition probability
+			prev_state_index = np.argwhere(states==s)[0]
+			aij = st_matrix[prev_state_index][0][current_state_index][0]
+			# calculate path probability
+
+			path = a*aij
+			if(path > best_path):
+				best_path = path
+				optimal_state = s
+
+
+		
+		#track the optimal state
+		if(T == 1 ):
+			# We do this because when calculating the optimal state for 
+			# time 1, we can also append a None for state zero
+			# right before appending the optimal state for time 1
+			optimal_states.append("None")
+			optimal_states.append(optimal_state)
+		else:
+			optimal_states.append(optimal_state)
+		# get index for emmision at time T	
+		em_index =  np.argwhere(em == obs.at[T])[0]	
+		# with these index and the state, the 
+		# emision probability can be retrieved
+		ep = e_pdf[current_state_index][0][em_index][0]
+		# get emission prob for current sate
+		delta_t = best_path * ep
+		#print("["+str(T)+"] Best Path : "+c+" {:.4f} ".format(best_path)+" , Emi: "+str(obs.at[T])+" {:.4f}".format(ep))
+		return (delta_t)
 
 
 # define state transition probability
@@ -126,7 +191,7 @@ states = np.array(["poor","good"])
 #  this is just for example to express that each staet
 # will have its own emission probability distribution
 # following both have the same
-e_pd = np.array([[pl,pa,ph],[pl,pa,ph]])
+e_pd = np.array([[0.6,0.3,0.1],[0.3,0.4,0.3]])
 # define emissions
 e = np.array(["low","ave","high"])
 
@@ -136,8 +201,33 @@ interv = np.array([min(o_data[lat_col])-1, thresh-std_dev, thresh+std_dev, max(o
 o_data['labels']=map(lambda x: label_latencies(x,e,interv),o_data[lat_col])
 
 
-forward_propagation(initial_pdf, states, transition_pdf, e, e_pd, o_data['labels'], 0)
+P_O_lambda = 0.0
+time = 5 #len(o_data['labels'])
+print(time)
 
+
+print(" *****  FORWARD PROPAGATION ***** ")
+for sk in states:
+	seq_prob = forward_propagation(initial_pdf, states, transition_pdf, e, e_pd, o_data['labels'], time, sk)
+	P_O_lambda = P_O_lambda + seq_prob
+
+print ("P(O|lambda) : {}".format(P_O_lambda))
+
+
+optimal = list()
+optimal_states2 = list()
+
+print(" *****  VITERBI ***** ")
+
+optimal_path_prob = 0.0
+for sk in states:
+	optimal_states = list()
+	path_prob = viterbi(initial_pdf, states, transition_pdf, e, e_pd, o_data['labels'], time, sk)
+	if(path_prob > optimal_path_prob):
+		optimal = optimal_states
+		optimal_path_prob = path_prob
+
+print(optimal)
 
 
 

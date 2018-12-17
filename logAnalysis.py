@@ -515,7 +515,14 @@ def alignGPSandLatency(latency_data, gps_data,option):
 # the distance is calculated using a simple approximation: the eart is flat  between the 2 points
 def getSurroundingAntennas(p, r, a):
 	count = 0
-	for (lat,lon)in zip(a['lat'],a['lon']):
+
+	# reduce search space to only around the current point p
+	search_data = a[ a["lon"] <= (p[1]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lon"] >= (p[1]-margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] <= (p[0]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] >= (p[0]-margin_epsg4326*1.0) ]
+
+	for (lat,lon)in zip(search_data['lat'],search_data['lon']):
 		c = 2*np.pi/360.0  # degree to radian
 		arc = np.sqrt( (lat-p[0])**2  + (lon-p[1])**2 )*c  #convert to radian
 		d = R*arc    # distance = radius*arc
@@ -524,12 +531,20 @@ def getSurroundingAntennas(p, r, a):
 		#print d
 	return count 
 
-# get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
-# 'a' is a dataframe containing the position of all antennas in lat,lon
+# get the number of buildings inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
+# 'a' is a dataframe containing the position of all buildings in lat,lon
 # the distance is calculated using a simple approximation: the eart is flat  between the 2 points
 def getSurroundingBuildings(p, r, a):
 	count = 0
-	for (lat,lon)in zip(a['lat'],a['lon']):
+
+	# reduce search space to only around the current point p
+	search_data = a[ a["lon"] <= (p[1]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lon"] >= (p[1]-margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] <= (p[0]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] >= (p[0]-margin_epsg4326*1.0) ]
+
+	for (lat,lon)in zip(search_data['lat'],search_data['lon']):
+
 		c = 2*np.pi/360.0  # degree to radian
 		arc = np.sqrt( (lat-p[0])**2  + (lon-p[1])**2 )*c  #convert to radian
 		d = R*arc    # distance = radius*arc
@@ -543,7 +558,14 @@ def getSurroundingBuilding_AvgHeight(p, r, a):
 	count = 0
 	cum_height = 0
 	avg_height = 0
-	for (lat,lon,h) in zip(a['lat'],a['lon'], a['height']):
+
+	# reduce search space to only around the current point p
+	search_data = a[ a["lon"] <= (p[1]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lon"] >= (p[1]-margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] <= (p[0]+margin_epsg4326*1.0) ]
+	search_data = search_data[ search_data["lat"] >= (p[0]-margin_epsg4326*1.0) ]
+
+	for (lat,lon,h) in zip(search_data['lat'],search_data['lon'], search_data['height']):
 		c = 2*np.pi/360.0  # degree to radian
 		arc = np.sqrt( (lat-p[0])**2  + (lon-p[1])**2 )*c  #convert to radian
 		d = R*arc    # distance = radius*arc
@@ -782,70 +804,16 @@ gps_lat_cam4 = alignGPSandLatency(cam4, track_datapoints, opt)
 #		IMPORT AND DRAW GIS DATA
 #
 #///////////////////////////////////////////
-print("\n---------- IMPORT GEOJSON DATA --------------")
 
+if(opt == 0):
+	lat_col = 'min_latency'
+if(opt == 1):
+	lat_col = 'avg_latency'
+if(opt == 2):
+	lat_col = 'max_latency'
 
-# import geojson file
-#admin = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_admin.geojson')
+# need this file for other calculations ... cannot be inside if()
 buildings = gpd.read_file("maps/buildings/Buildings_University2.geojson")
-#buildings = buildings[ buildings['HEIGHT'] > 0.0 ]
-#places = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_places.geojson')
-#roads = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads.geojson')
-#roads_gen0 = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads_gen0.geojson')
-#roads_gen1 = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads_gen1.geojson')
-#transport_areas = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_transport_areas.geojson')
-waterareas = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_waterareas.geojson')
-
-# draw all layers
-
-map5 = plt.figure(figsize=(20,10))
-map5.suptitle("Latency Map All cameras")
-map0 = plt.figure(figsize=(20,10))
-map0.suptitle("Latency Map Camera 0")
-map1 = plt.figure(figsize=(20,10))
-map1.suptitle("Latency Map Camera 1")
-map2 = plt.figure(figsize=(20,10))
-map2.suptitle("Latency Map Camera 2")
-map3 = plt.figure(figsize=(20,10))
-map3.suptitle("Latency Map Camera 3")
-map4 = plt.figure(figsize=(20,10))
-map4.suptitle("Latency Map Camera 4")
-
-#rect = 0.05,0.05,0.8,0.8
-map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
-map5ax1.set_aspect('equal')
-map0ax1 = map0.add_subplot(1,1,1)
-map0ax1.set_aspect('equal')
-map1ax1 = map1.add_subplot(1,1,1)
-map1ax1.set_aspect('equal')
-map2ax1 = map2.add_subplot(1,1,1)
-map2ax1.set_aspect('equal')
-map3ax1 = map3.add_subplot(1,1,1)
-map3ax1.set_aspect('equal')
-map4ax1 = map4.add_subplot(1,1,1)
-map4ax1.set_aspect('equal')
-
-#admin.plot(ax=map1ax1, color='white', edgecolor='black',alpha = 0.5)
-#buildings.plot(ax=map1ax1, color = 'green', alpha = 0.5)
-#places.plot(ax=map1ax1, color = 'black', alpha = 0.5)
-#roads.plot(ax = map1ax1, color = 'green', alpha = 0.0)
-#roads_gen0.plot(ax = map1ax1, color = 'magenta', alpha = 0.0)
-#roads_gen1.plot(ax = map1ax1, color = 'cyan', alpha = 0.0)
-#transport_areas.plot(ax = map1ax1, color = 'red', alpha = 0.5)
-#waterareas.plot(ax = map1ax1, color = 'blue', alpha = 0.5)
-
-#//////////////////////////////////////////
-#
-#		CONVERT DATA TO MERCATOR FOR BASEMAP DISPLAY
-#
-#///////////////////////////////////////////
-
-print("\n---------- CONVERT DATA TO MERCATOR --------------")
-
-#admin = admin.to_crs(epsg=3857)
-buildings = buildings.to_crs(epsg=3857)
-waterareas = waterareas.to_crs(epsg=3857)
-
 # calculate display region
 margin = 500.0
 max_lat = max(track_datapoints['lat'])
@@ -857,211 +825,271 @@ min_x = lon_to_mercator(min_lon)-margin
 max_y = lat_to_mercator(max_lat)+margin
 min_y = lat_to_mercator(min_lat)-margin
 
-# Display region of interest
-#admin = admin.cx[min_lon:max_lon,min_lat: max_lat ]
-buildings = buildings.cx[min_x:max_x,min_y: max_y ]
-waterareas = waterareas.cx[min_x:max_x,min_y: max_y ]
+if(True):
+	print("\n---------- IMPORT GEOJSON DATA --------------")
+	# import geojson file
+	#admin = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_admin.geojson')
+	
+	#buildings = buildings[ buildings['HEIGHT'] > 0.0 ]
+	#places = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_places.geojson')
+	#roads = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads.geojson')
+	#roads_gen0 = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads_gen0.geojson')
+	#roads_gen1 = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_roads_gen1.geojson')
+	#transport_areas = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_transport_areas.geojson')
+	waterareas = gpd.read_file('maps/seoul_south-korea.imposm-geojson/seoul_south-korea_waterareas.geojson')
 
-gps_lat_all['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_all['lon'])
-gps_lat_all['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_all['lat'])
+	# draw all layers
 
-gps_lat_cam0['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon'])
-gps_lat_cam0['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat'])
+	map5 = plt.figure(figsize=(20,10))
+	map5.suptitle("Latency Map All cameras")
+	map0 = plt.figure(figsize=(20,10))
+	map0.suptitle("Latency Map Camera 0")
+	map1 = plt.figure(figsize=(20,10))
+	map1.suptitle("Latency Map Camera 1")
+	map2 = plt.figure(figsize=(20,10))
+	map2.suptitle("Latency Map Camera 2")
+	map3 = plt.figure(figsize=(20,10))
+	map3.suptitle("Latency Map Camera 3")
+	map4 = plt.figure(figsize=(20,10))
+	map4.suptitle("Latency Map Camera 4")
 
-gps_lat_cam1['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon'])
-gps_lat_cam1['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat'])
+	#rect = 0.05,0.05,0.8,0.8
+	map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
+	map5ax1.set_aspect('equal')
+	map0ax1 = map0.add_subplot(1,1,1)
+	map0ax1.set_aspect('equal')
+	map1ax1 = map1.add_subplot(1,1,1)
+	map1ax1.set_aspect('equal')
+	map2ax1 = map2.add_subplot(1,1,1)
+	map2ax1.set_aspect('equal')
+	map3ax1 = map3.add_subplot(1,1,1)
+	map3ax1.set_aspect('equal')
+	map4ax1 = map4.add_subplot(1,1,1)
+	map4ax1.set_aspect('equal')
 
-gps_lat_cam2['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon'])
-gps_lat_cam2['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat'])
+	#admin.plot(ax=map1ax1, color='white', edgecolor='black',alpha = 0.5)
+	#buildings.plot(ax=map1ax1, color = 'green', alpha = 0.5)
+	#places.plot(ax=map1ax1, color = 'black', alpha = 0.5)
+	#roads.plot(ax = map1ax1, color = 'green', alpha = 0.0)
+	#roads_gen0.plot(ax = map1ax1, color = 'magenta', alpha = 0.0)
+	#roads_gen1.plot(ax = map1ax1, color = 'cyan', alpha = 0.0)
+	#transport_areas.plot(ax = map1ax1, color = 'red', alpha = 0.5)
+	#waterareas.plot(ax = map1ax1, color = 'blue', alpha = 0.5)
 
-gps_lat_cam3['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon'])
-gps_lat_cam3['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat'])
-
-gps_lat_cam4['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon'])
-gps_lat_cam4['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat'])
-
-antenna['x_merc'] = map(lambda x: lon_to_mercator(x),antenna['lon'])
-antenna['y_merc'] = map(lambda x: lat_to_mercator(x),antenna['lat'])
-
-
-
-
-#colores = getColorMap(cam0.loc[0:len(track_datapoints['ele']),'latency'])
-
-if(opt == 0):
-	lat_col = 'min_latency'
-if(opt == 1):
-	lat_col = 'avg_latency'
-if(opt == 2):
-	lat_col = 'max_latency'
-
-rect = 0.74,0.1,0.025,0.8
-color_map=plt.get_cmap(name)
-s1 = 25
-s2 = 6.0
-alpha = 0.7
-
-if (False):
 	#//////////////////////////////////////////
 	#
-	#		DRAW  GIS DATA WITH TRACK WITH LATENCY
+	#		CONVERT DATA TO MERCATOR FOR BASEMAP DISPLAY
 	#
 	#///////////////////////////////////////////
 
+	print("\n---------- CONVERT DATA TO MERCATOR --------------")
+
+	#admin = admin.to_crs(epsg=3857)
+	buildings = buildings.to_crs(epsg=3857)
+	waterareas = waterareas.to_crs(epsg=3857)
 
 
-	# Plot GIS layers
-	#admin.plot(ax=map5ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map5ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map5ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_all = gps_lat_all.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_all[lat_col])
-	map5ax1.scatter(gps_lat_all['x_merc'], gps_lat_all['y_merc'], color = colores, s = s1, alpha = alpha)
-	map5ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
-	map5ax1.set_xlim(min_x,max_x)
-	map5ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map5ax2 = map5.add_axes(rect)
-	latency_max = max(gps_lat_all[lat_col])
-	latency_min = min(gps_lat_all[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb1 = mpl.colorbar.ColorbarBase(map5ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb1.set_label('{ms}')
-	cb1.set_ticks(ticks)
 
-	# Plot GIS layers
-	#admin.plot(ax=map0ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map0ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map0ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_cam0[lat_col])
-	map0ax1.scatter(gps_lat_cam0['x_merc'], gps_lat_cam0['y_merc'], color = colores, s = s1, alpha = alpha)
-	map0ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
-	map0ax1.set_xlim(min_x,max_x)
-	map0ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map0ax2 = map0.add_axes(rect)
-	latency_max = max(gps_lat_cam0[lat_col])
-	latency_min = min(gps_lat_cam0[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb2 = mpl.colorbar.ColorbarBase(map0ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb2.set_label('{ms}')
-	cb2.set_ticks(ticks)
+	# Display region of interest
+	#admin = admin.cx[min_lon:max_lon,min_lat: max_lat ]
+	buildings = buildings.cx[min_x:max_x,min_y: max_y ]
+	waterareas = waterareas.cx[min_x:max_x,min_y: max_y ]
 
-	# Plot GIS layers
-	#admin.plot(ax=map1ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map1ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map1ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_cam1[lat_col])
-	map1ax1.scatter(gps_lat_cam1['x_merc'], gps_lat_cam1['y_merc'], color = colores, s = s1, alpha = alpha)
-	map1ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
-	map1ax1.set_xlim(min_x,max_x)
-	map1ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map1ax2 = map1.add_axes(rect)
-	latency_max = max(gps_lat_cam1[lat_col])
-	latency_min = min(gps_lat_cam1[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb3 = mpl.colorbar.ColorbarBase(map1ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb3.set_label('{ms}')
-	cb3.set_ticks(ticks)
+	gps_lat_all['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_all['lon'])
+	gps_lat_all['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_all['lat'])
+
+	gps_lat_cam0['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon'])
+	gps_lat_cam0['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat'])
+
+	gps_lat_cam1['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon'])
+	gps_lat_cam1['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat'])
+
+	gps_lat_cam2['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon'])
+	gps_lat_cam2['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat'])
+
+	gps_lat_cam3['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon'])
+	gps_lat_cam3['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat'])
+
+	gps_lat_cam4['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon'])
+	gps_lat_cam4['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat'])
+
+	antenna['x_merc'] = map(lambda x: lon_to_mercator(x),antenna['lon'])
+	antenna['y_merc'] = map(lambda x: lat_to_mercator(x),antenna['lat'])
 
 
-	# Plot GIS layers
-	#admin.plot(ax=map2ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map2ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map2ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_cam2[lat_col])
-	map2ax1.scatter(gps_lat_cam2['x_merc'], gps_lat_cam2['y_merc'], color = colores, s=s1, alpha = alpha)
-	map2ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
-	map2ax1.set_xlim(min_x,max_x)
-	map2ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map2ax2 = map2.add_axes(rect)
-	latency_max = max(gps_lat_cam2[lat_col])
-	latency_min = min(gps_lat_cam2[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb4 = mpl.colorbar.ColorbarBase(map2ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb4.set_label('{ms}')
-	cb4.set_ticks(ticks)
 
 
-	# Plot GIS layers
-	#admin.plot(ax=map3ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map3ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map3ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_cam3[lat_col])
-	map3ax1.scatter(gps_lat_cam3['x_merc'], gps_lat_cam3['y_merc'], color = colores, s = s1, alpha = alpha)
-	map3ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
-	map3ax1.set_xlim(min_x,max_x)
-	map3ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map3ax2 = map3.add_axes(rect)
-	latency_max = max(gps_lat_cam3[lat_col])
-	latency_min = min(gps_lat_cam3[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb5 = mpl.colorbar.ColorbarBase(map3ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb5.set_label('{ms}')
-	cb5.set_ticks(ticks)
-
-	# Plot GIS layers
-	#admin.plot(ax=map3ax1, color='white', edgecolor='black',alpha = 0.2)
-	buildings.plot(ax=map4ax1, color = 'green', alpha = 0.5)
-	waterareas.plot(ax = map4ax1, color = 'blue', alpha = 0.5)
-	# Plot Latency Map
-	gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col])
-	colores = getColorMap(gps_lat_cam4[lat_col])
-	map4ax1.scatter(gps_lat_cam4['x_merc'], gps_lat_cam4['y_merc'], color = colores, s = s1, alpha = alpha)
-	map4ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
-	map4ax1.set_xlim(min_x,max_x)
-	map4ax1.set_ylim(min_y,max_y)
-	#Plot color bar
-	map4ax2 = map4.add_axes(rect)
-	latency_max = max(gps_lat_cam4[lat_col])
-	latency_min = min(gps_lat_cam4[lat_col])
-	ticks = np.linspace(latency_min, latency_max, 10)
-	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-	cb6 = mpl.colorbar.ColorbarBase(map4ax2, cmap=color_map, norm=norm, orientation='vertical')
-	cb6.set_label('{ms}')
-	cb6.set_ticks(ticks)
+	#colores = getColorMap(cam0.loc[0:len(track_datapoints['ele']),'latency'])
 
 
-	map5.savefig(save_dir+file_name+"_latency_map_all.jpg")
-	map0.savefig(save_dir+file_name+"_latency_map_cam0.jpg")
-	map1.savefig(save_dir+file_name+"_latency_map_cam1.jpg")
-	map2.savefig(save_dir+file_name+"_latency_map_cam2.jpg")
-	map3.savefig(save_dir+file_name+"_latency_map_cam3.jpg")
-	map4.savefig(save_dir+file_name+"_latency_map_cam4.jpg")
+
+	rect = 0.74,0.1,0.025,0.8
+	color_map=plt.get_cmap(name)
+	s1 = 25
+	s2 = 6.0
+	alpha = 0.7
+
+	if (False):
+		#//////////////////////////////////////////
+		#
+		#		DRAW  GIS DATA WITH TRACK WITH LATENCY
+		#
+		#///////////////////////////////////////////
 
 
-data_dic["lat_gps_all"] = file_name+"_latency_map_all.jpg"
-data_dic["lat_gps_cam0"] = file_name+"_latency_map_cam0.jpg"
-data_dic["lat_gps_cam1"] = file_name+"_latency_map_cam1.jpg"
-data_dic["lat_gps_cam2"] = file_name+"_latency_map_cam2.jpg"
-data_dic["lat_gps_cam3"] = file_name+"_latency_map_cam3.jpg"
-data_dic["lat_gps_cam4"] = file_name+"_latency_map_cam4.jpg"
 
-# Sort again by time
-gps_lat_all = gps_lat_all.sort_index()
-gps_lat_cam0 = gps_lat_cam0.sort_index()
-gps_lat_cam1 = gps_lat_cam1.sort_index()
-gps_lat_cam2 = gps_lat_cam2.sort_index()
-gps_lat_cam3 = gps_lat_cam3.sort_index()
-gps_lat_cam4 = gps_lat_cam4.sort_index()
-#print(gps_lat_all.head(10))
+		# Plot GIS layers
+		#admin.plot(ax=map5ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map5ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map5ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_all = gps_lat_all.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_all[lat_col])
+		map5ax1.scatter(gps_lat_all['x_merc'], gps_lat_all['y_merc'], color = colores, s = s1, alpha = alpha)
+		map5ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
+		map5ax1.set_xlim(min_x,max_x)
+		map5ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map5ax2 = map5.add_axes(rect)
+		latency_max = max(gps_lat_all[lat_col])
+		latency_min = min(gps_lat_all[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb1 = mpl.colorbar.ColorbarBase(map5ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb1.set_label('{ms}')
+		cb1.set_ticks(ticks)
+
+		# Plot GIS layers
+		#admin.plot(ax=map0ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map0ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map0ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_cam0[lat_col])
+		map0ax1.scatter(gps_lat_cam0['x_merc'], gps_lat_cam0['y_merc'], color = colores, s = s1, alpha = alpha)
+		map0ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
+		map0ax1.set_xlim(min_x,max_x)
+		map0ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map0ax2 = map0.add_axes(rect)
+		latency_max = max(gps_lat_cam0[lat_col])
+		latency_min = min(gps_lat_cam0[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb2 = mpl.colorbar.ColorbarBase(map0ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb2.set_label('{ms}')
+		cb2.set_ticks(ticks)
+
+		# Plot GIS layers
+		#admin.plot(ax=map1ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map1ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map1ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_cam1[lat_col])
+		map1ax1.scatter(gps_lat_cam1['x_merc'], gps_lat_cam1['y_merc'], color = colores, s = s1, alpha = alpha)
+		map1ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
+		map1ax1.set_xlim(min_x,max_x)
+		map1ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map1ax2 = map1.add_axes(rect)
+		latency_max = max(gps_lat_cam1[lat_col])
+		latency_min = min(gps_lat_cam1[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb3 = mpl.colorbar.ColorbarBase(map1ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb3.set_label('{ms}')
+		cb3.set_ticks(ticks)
+
+
+		# Plot GIS layers
+		#admin.plot(ax=map2ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map2ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map2ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_cam2[lat_col])
+		map2ax1.scatter(gps_lat_cam2['x_merc'], gps_lat_cam2['y_merc'], color = colores, s=s1, alpha = alpha)
+		map2ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
+		map2ax1.set_xlim(min_x,max_x)
+		map2ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map2ax2 = map2.add_axes(rect)
+		latency_max = max(gps_lat_cam2[lat_col])
+		latency_min = min(gps_lat_cam2[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb4 = mpl.colorbar.ColorbarBase(map2ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb4.set_label('{ms}')
+		cb4.set_ticks(ticks)
+
+
+		# Plot GIS layers
+		#admin.plot(ax=map3ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map3ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map3ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_cam3[lat_col])
+		map3ax1.scatter(gps_lat_cam3['x_merc'], gps_lat_cam3['y_merc'], color = colores, s = s1, alpha = alpha)
+		map3ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
+		map3ax1.set_xlim(min_x,max_x)
+		map3ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map3ax2 = map3.add_axes(rect)
+		latency_max = max(gps_lat_cam3[lat_col])
+		latency_min = min(gps_lat_cam3[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb5 = mpl.colorbar.ColorbarBase(map3ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb5.set_label('{ms}')
+		cb5.set_ticks(ticks)
+
+		# Plot GIS layers
+		#admin.plot(ax=map3ax1, color='white', edgecolor='black',alpha = 0.2)
+		buildings.plot(ax=map4ax1, color = 'green', alpha = 0.5)
+		waterareas.plot(ax = map4ax1, color = 'blue', alpha = 0.5)
+		# Plot Latency Map
+		gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col])
+		colores = getColorMap(gps_lat_cam4[lat_col])
+		map4ax1.scatter(gps_lat_cam4['x_merc'], gps_lat_cam4['y_merc'], color = colores, s = s1, alpha = alpha)
+		map4ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
+		map4ax1.set_xlim(min_x,max_x)
+		map4ax1.set_ylim(min_y,max_y)
+		#Plot color bar
+		map4ax2 = map4.add_axes(rect)
+		latency_max = max(gps_lat_cam4[lat_col])
+		latency_min = min(gps_lat_cam4[lat_col])
+		ticks = np.linspace(latency_min, latency_max, 10)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb6 = mpl.colorbar.ColorbarBase(map4ax2, cmap=color_map, norm=norm, orientation='vertical')
+		cb6.set_label('{ms}')
+		cb6.set_ticks(ticks)
+
+
+		map5.savefig(save_dir+file_name+"_latency_map_all.jpg")
+		map0.savefig(save_dir+file_name+"_latency_map_cam0.jpg")
+		map1.savefig(save_dir+file_name+"_latency_map_cam1.jpg")
+		map2.savefig(save_dir+file_name+"_latency_map_cam2.jpg")
+		map3.savefig(save_dir+file_name+"_latency_map_cam3.jpg")
+		map4.savefig(save_dir+file_name+"_latency_map_cam4.jpg")
+
+
+	data_dic["lat_gps_all"] = file_name+"_latency_map_all.jpg"
+	data_dic["lat_gps_cam0"] = file_name+"_latency_map_cam0.jpg"
+	data_dic["lat_gps_cam1"] = file_name+"_latency_map_cam1.jpg"
+	data_dic["lat_gps_cam2"] = file_name+"_latency_map_cam2.jpg"
+	data_dic["lat_gps_cam3"] = file_name+"_latency_map_cam3.jpg"
+	data_dic["lat_gps_cam4"] = file_name+"_latency_map_cam4.jpg"
+
+	# Sort again by time
+	gps_lat_all = gps_lat_all.sort_index()
+	gps_lat_cam0 = gps_lat_cam0.sort_index()
+	gps_lat_cam1 = gps_lat_cam1.sort_index()
+	gps_lat_cam2 = gps_lat_cam2.sort_index()
+	gps_lat_cam3 = gps_lat_cam3.sort_index()
+	gps_lat_cam4 = gps_lat_cam4.sort_index()
+	#print(gps_lat_all.head(10))
 
 #//////////////////////////////////////////
 #	 	ADD BASEMAP
@@ -1082,421 +1110,427 @@ plt.close('all')
 #	- antenna density vs latency
 #	- surrounding height vs latency
 #//////////////////////////////////////////
+if(True):
 
-print("\n---------- GENERATE DATA ANALYSIS GRAPHS --------------")
-
-
-#  ------------- SPEED, LATENCY VS TIME GRAPH -----------------
-print("\n---------- SPEED, LATENCY VS TIME GRAPH --------------")
-
-ana1 = plt.figure(figsize=(20,10))
-#ana1.suptitle(" Data Analysis ")
-
-ana1ax1 = ana1.add_subplot(1,1,1)
-ana1ax1.set_title(" Latency {ms} and Speed {km/h} vs Time")
-ana1ax1.plot(gps_lat_all.index, gps_lat_all[lat_col], color = 'b', label = 'latency vs time')
-ana1ax1.set_xlabel(" Time ")
-ana1ax1.set_ylabel(" Latency {ms}", color = 'b')
-ana1ax1.legend(loc='upper left', shadow=True, fontsize='x-large')
-ana1ax1.tick_params(axis = 'y', labelcolor='b')
-#ana1ax1.set_xlim(gps_lat_all.index[0],gps_lat_all.index[-1])
-#ticks = pd.date_range(gps_lat_all.index[0],gps_lat_all.index[-1], freq='min')
-#ana1ax1.set_xticks(ticks)
-
-formatter = mpl.ticker.FuncFormatter(lambda ms, x: time.strftime('%S', time.gmtime(ms // 1000)))
-ana1ax1.xaxis.set_major_formatter(formatter)
-
-ana1ax2 = ana1ax1.twinx() #ana0.add_subplot(1,1,1) #ana1ax1.twinx()
-ana1ax2.plot(gps_lat_all.index, gps_lat_all['speed'], color = 'r', label = 'speed vs time')
-ana1ax2.set_ylabel('Speed {km/h}', color = 'r')
-ana1ax2.tick_params(axis='y', labelcolor='r')
-ana1ax2.legend(loc='upper right', shadow=True, fontsize='x-large')
-
-#ana1.tight_layout()
-
-#  ------------- LATENCY VS SPEED GRAPH -----------------
-print("\n---------- LATENCY VS SPEED GRAPH --------------")
-
-ana2 = plt.figure(figsize=(20,10))
-
-ana2.suptitle(" Data Analysis ")
-ana2ax1 = ana2.add_subplot(1,1,1)
-ana2ax1.set_title(" Latency {ms} vs Speed {km/h}")
-ana2ax1.scatter(gps_lat_all['speed'], gps_lat_all[lat_col], color = 'b', label = 'latency vs speed')
-ana2ax1.set_xlabel(" Speed {km/h}")
-ana2ax1.set_ylabel(" Latency {ms}")
-
-# plot speed vs something graphs
-h = 5  #km/h
-h1 = 2*h# *1000/(3600)
-dx = 0.5 #km/h
-speed_max = max(gps_lat_all['speed'])
-speed_min = min(gps_lat_all['speed'])
-print("Speed min: {}, max: {}".format(speed_min,speed_max))
-speed_group = gps_lat_all.groupby(pd.cut(gps_lat_all['speed'], np.arange(speed_min,speed_max,h1))).mean()
-speed_group['speed_mean'] = map(lambda x: x.mid, speed_group.index.values)
-#print (speed_group.head(10))
-#ana2ax1.scatter(speed_group['speed_mean'], speed_group[lat_col], color ='r', label = 'avg latency')
-
-low_lim = speed_min
-high_lim = low_lim + h1
-speed_centers = list()
-latency_avg = list()
-
-while( high_lim <= speed_max):
-	# crop data between limits
-	lat_avg = gps_lat_all[ gps_lat_all['speed'] >= low_lim ]
-	lat_avg = lat_avg[ lat_avg['speed'] <= high_lim]
-	#print(lat_avg.head(10))
-	# get center point of window
-	speed_centers.append((low_lim+high_lim)/2)
-	# get latency average inside window
-	latency_avg.append(lat_avg[lat_col].mean())
-	# move window by delta x
-	low_lim = low_lim+dx
-	high_lim = high_lim+dx
-
-avg_lat = gps_lat_all.groupby('speed').mean()
-
-# draw 
-#ana2ax1.scatter(avg_lat.index, avg_lat[lat_col], color ='r', label = 'avg latency')
-ana2ax1.scatter(speed_centers, latency_avg, color ='r', label = 'avg latency')
-ana2ax1.legend(loc='upper right', shadow=True, fontsize='x-large')
+	print("\n---------- GENERATE DATA ANALYSIS GRAPHS --------------")
 
 
-#  ------------- LATENCY VS ANTENNA INSIDE RADIUS -----------------
-print("\n---------- LATENCY VS ANTENNA INSIDE RADIUS --------------")
+	#  ------------- SPEED, LATENCY VS TIME GRAPH -----------------
+	print("\n---------- SPEED, LATENCY VS TIME GRAPH --------------")
+
+	ana1 = plt.figure(figsize=(20,10))
+	#ana1.suptitle(" Data Analysis ")
+
+	ana1ax1 = ana1.add_subplot(1,1,1)
+	ana1ax1.set_title(" Latency {ms} and Speed {km/h} vs Time")
+	ana1ax1.plot(gps_lat_all.index, gps_lat_all[lat_col], color = 'b', label = 'latency vs time')
+	ana1ax1.set_xlabel(" Time ")
+	ana1ax1.set_ylabel(" Latency {ms}", color = 'b')
+	ana1ax1.legend(loc='upper left', shadow=True, fontsize='x-large')
+	ana1ax1.tick_params(axis = 'y', labelcolor='b')
+	#ana1ax1.set_xlim(gps_lat_all.index[0],gps_lat_all.index[-1])
+	#ticks = pd.date_range(gps_lat_all.index[0],gps_lat_all.index[-1], freq='min')
+	#ana1ax1.set_xticks(ticks)
+
+	formatter = mpl.ticker.FuncFormatter(lambda ms, x: time.strftime('%S', time.gmtime(ms // 1000)))
+	ana1ax1.xaxis.set_major_formatter(formatter)
+
+	ana1ax2 = ana1ax1.twinx() #ana0.add_subplot(1,1,1) #ana1ax1.twinx()
+	ana1ax2.plot(gps_lat_all.index, gps_lat_all['speed'], color = 'r', label = 'speed vs time')
+	ana1ax2.set_ylabel('Speed {km/h}', color = 'r')
+	ana1ax2.tick_params(axis='y', labelcolor='r')
+	ana1ax2.legend(loc='upper right', shadow=True, fontsize='x-large')
+
+	#ana1.tight_layout()
+
+	#  ------------- LATENCY VS SPEED GRAPH -----------------
+	print("\n---------- LATENCY VS SPEED GRAPH --------------")
+
+	ana2 = plt.figure(figsize=(20,10))
+
+	ana2.suptitle(" Data Analysis ")
+	ana2ax1 = ana2.add_subplot(1,1,1)
+	ana2ax1.set_title(" Latency {ms} vs Speed {km/h}")
+	ana2ax1.scatter(gps_lat_all['speed'], gps_lat_all[lat_col], color = 'b', label = 'latency vs speed')
+	ana2ax1.set_xlabel(" Speed {km/h}")
+	ana2ax1.set_ylabel(" Latency {ms}")
+
+	# plot speed vs something graphs
+	h = 5  #km/h
+	h1 = 2*h# *1000/(3600)
+	dx = 0.5 #km/h
+	speed_max = max(gps_lat_all['speed'])
+	speed_min = min(gps_lat_all['speed'])
+	print("Speed min: {}, max: {}".format(speed_min,speed_max))
+	speed_group = gps_lat_all.groupby(pd.cut(gps_lat_all['speed'], np.arange(speed_min,speed_max,h1))).mean()
+	speed_group['speed_mean'] = map(lambda x: x.mid, speed_group.index.values)
+	#print (speed_group.head(10))
+	#ana2ax1.scatter(speed_group['speed_mean'], speed_group[lat_col], color ='r', label = 'avg latency')
+
+	low_lim = speed_min
+	high_lim = low_lim + h1
+	speed_centers = list()
+	latency_avg = list()
+
+	while( high_lim <= speed_max):
+		# crop data between limits
+		lat_avg = gps_lat_all[ gps_lat_all['speed'] >= low_lim ]
+		lat_avg = lat_avg[ lat_avg['speed'] <= high_lim]
+		#print(lat_avg.head(10))
+		# get center point of window
+		speed_centers.append((low_lim+high_lim)/2)
+		# get latency average inside window
+		latency_avg.append(lat_avg[lat_col].mean())
+		# move window by delta x
+		low_lim = low_lim+dx
+		high_lim = high_lim+dx
+
+	avg_lat = gps_lat_all.groupby('speed').mean()
+
+	# draw 
+	#ana2ax1.scatter(avg_lat.index, avg_lat[lat_col], color ='r', label = 'avg latency')
+	ana2ax1.scatter(speed_centers, latency_avg, color ='r', label = 'avg latency')
+	ana2ax1.legend(loc='upper right', shadow=True, fontsize='x-large')
 
 
-# reduce antenna search data to reduce computation time
-#print("Antenas antes de cortar: "+str(len(antenna['lat'])))
-a = antenna[ antenna['x_merc'] <= (max_x+margin*2.0) ]
-a = a[ a['x_merc'] >= (min_x-margin*2.0) ]
-a = a[ a['y_merc'] <= (max_y+margin*2.0) ]
-a = a[ a['y_merc'] >= (min_y-margin*2.0) ]
-#print("Despues antes de cortar: "+str(len(a['lat'])))
+	#  ------------- LATENCY VS ANTENNA INSIDE RADIUS -----------------
+	print("\n---------- LATENCY VS ANTENNA INSIDE RADIUS --------------")
+	margin_epsg4326 = 0.005  # the number of degrees by which the search area will be extended
 
 
-# search radius for surrounding antennas
+	"""
+	# reduce antenna search data to reduce computation time
+	#print("Antenas antes de cortar: "+str(len(antenna['lat'])))
+	a = antenna[ antenna['lon'] <= (max_lon+margin_epsg4326*2.0) ]
+	a = a[ a['lon'] >= (min_lon-margin_epsg4326*2.0) ]
+	a = a[ a['lat'] <= (max_lat+margin_epsg4326*2.0) ]
+	a = a[ a['lat'] >= (min_lat-margin_epsg4326*2.0) ]
+	#print("Despues antes de cortar: "+str(len(a['lat'])))
+	"""
 
-r_search = [100,200,300,400,500]
-r_names = ["r0", "r1", "r2", "r3", "r4"]
-for (rname, r) in zip(r_names,r_search):
-	#data_dic['r']=r
-	test = gps_lat_all[0:50]
-	gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, a),gps_lat_all['lat'],gps_lat_all['lon'])
+	# search radius for surrounding antennas
 
-	ana3 = plt.figure(figsize=(20,10))
-	ana3ax1 = ana3.add_subplot(1,1,1)
-	ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
-	ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
-	ana3ax1.set_xlabel(" Number of Antennas {}")
-	ana3ax1.set_ylabel(" Latency {ms}")
-	#ana3ax1.set_xlim(-1,)
-	ana3.savefig(save_dir+file_name+"_latency_antenna_in_radius_"+str(r)+".jpg")
+	# WARNING WARNING: If search increases to over 500m, the parameter margin_epsg4326 should be increased 
+	# accordingly (margin_epsg4326 = 0.005 aprox to 557m). If want to make searches inside 1km radius
+	# then margin epsg_4326 = 0.01 aprox 1.1km will be fine
+	r_search = [250,200,150,100,50]
+	r_names = ["r4", "r3", "r2", "r1", "r0"]
+	for (rname, r) in zip(r_names,r_search):
+		#data_dic['r']=r
+		test = gps_lat_all[0:50]
+		gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon'])
 
-	data_dic["latency_antenna_in_radius_"+rname] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
+		ana3 = plt.figure(figsize=(20,10))
+		ana3ax1 = ana3.add_subplot(1,1,1)
+		ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
+		ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
+		ana3ax1.set_xlabel(" Number of Antennas {}")
+		ana3ax1.set_ylabel(" Latency {ms}")
+		#ana3ax1.set_xlim(-1,)
+		ana3.savefig(save_dir+file_name+"_latency_antenna_in_radius_"+str(r)+".jpg")
 
-#data_dic["latency_antenna_in_radius_"+str(r)] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
-"""
-data_dic["r0"] = r_search[0]
-data_dic["r1"] = r_search[1]
-data_dic["r2"] = r_search[2]
-data_dic["r3"] = r_search[3]
-data_dic["r4"] = r_search[4]
-"""
+		data_dic["latency_antenna_in_radius_"+rname] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
 
 
 
-#  ------------- LATENCY VS BUILDING DENSITY GRAPH -----------------
-print("\n---------- LATENCY VS BUILDING DENSITY GRAPH --------------")
 
-"""
-# get building centroids. They will be used to represent the position of the 
-# building
-b_cents = pd.DataFrame()
-# reconvert buildings data to EPSG4326....remember I converted before to Mercator
-buildings = buildings.to_crs(epsg=4326)
+	#  ------------- LATENCY VS BUILDING DENSITY GRAPH -----------------
+	print("\n---------- LATENCY VS BUILDING DENSITY GRAPH --------------")
 
-
-# get latitude and longiute separated
-b_cents["lon"] = buildings.centroid.map(lambda p: p.x)
-b_cents["lat"] = buildings.centroid.map(lambda p: p.y)
-b_cents["height"] = buildings['HEIGHT']
-#print("Buildings antes de cortar: "+str(b_cents.shape))
-
-# reduce building search area to reduce computation time
-#print("Antenas antes de cortar: "+str(len(antenna['lat'])))
-margin_epsg4326 = 0.005
-#print("route lon range: "+str((min_lon-margin_epsg4326*2))+", "+str((max_lon+margin_epsg4326*2)))
-#print("route lat range: "+str((min_lat-margin_epsg4326*2))+", "+str((max_lat+margin_epsg4326*2)))
-
-#print("b cents lon range: "+str(min(b_cents["lon"]))+", "+str(max(b_cents["lon"])))
-#print("b cents lat range: "+str(min(b_cents["lat"]))+", "+str(max(b_cents["lat"])))
+	
+	# get building centroids. They will be used to represent the position of the 
+	# building
+	b_cents = pd.DataFrame()
+	# reconvert buildings data to EPSG4326....remember I converted before to Mercator
+	buildings = buildings.to_crs(epsg=4326)
 
 
-bc = b_cents[ b_cents["lon"] <= (max_lon+margin_epsg4326*2) ]
-bc = bc[ bc["lon"] >= (min_lon-margin_epsg4326*2) ]
-bc = bc[ bc["lat"] <= (max_lat+margin_epsg4326*2) ]
-bc = bc[ bc["lat"] >= (min_lat-margin_epsg4326*2) ]
-#print("Buildings despues de cortar: "+str(bc.shape))
+	# get latitude and longiute separated
+	b_cents["lon"] = buildings.centroid.map(lambda p: p.x)
+	b_cents["lat"] = buildings.centroid.map(lambda p: p.y)
+	b_cents["height"] = buildings['HEIGHT']
+	#print("Buildings antes de cortar: "+str(b_cents.shape))
 
-#get the number of surroinding buildings for each point
-gps_lat_all['buildings'] = map(lambda x,y: getSurroundingBuildings([x,y], r, bc),gps_lat_all['lat'],gps_lat_all['lon'])
+	# reduce building search area to reduce computation time
+	#print("Antenas antes de cortar: "+str(len(antenna['lat'])))
+	
+	#print("route lon range: "+str((min_lon-margin_epsg4326*2))+", "+str((max_lon+margin_epsg4326*2)))
+	#print("route lat range: "+str((min_lat-margin_epsg4326*2))+", "+str((max_lat+margin_epsg4326*2)))
 
-ana4 = plt.figure(figsize=(20,10))
-ana4ax1 = ana4.add_subplot(1,1,1)
-ana4ax1.set_title(" Latency {ms} vs Number of Buildings in radius of "+str(r)+" m")
-ana4ax1.scatter(gps_lat_all['buildings'], gps_lat_all[lat_col], color = 'c')
-ana4ax1.set_xlabel(" Number of Buildings {}")
-ana4ax1.set_ylabel(" Latency {ms}")
-#ana4ax1.set_xlim(-1,300)
-"""
-#  ------------- LATENCY VS AVERAGE BUILDING HEIGHT GRAPH-----------------
-"""
-print("\n---------- DRAW LATENCY VS AVERAGE BUILDING HEIGHT --------------")
+	#print("b cents lon range: "+str(min(b_cents["lon"]))+", "+str(max(b_cents["lon"])))
+	#print("b cents lat range: "+str(min(b_cents["lat"]))+", "+str(max(b_cents["lat"])))
 
+	"""
+	bc = b_cents[ b_cents["lon"] <= (max_lon+margin_epsg4326*2) ]
+	bc = bc[ bc["lon"] >= (min_lon-margin_epsg4326*2) ]
+	bc = bc[ bc["lat"] <= (max_lat+margin_epsg4326*2) ]
+	bc = bc[ bc["lat"] >= (min_lat-margin_epsg4326*2) ]
+	#print("Buildings despues de cortar: "+str(bc.shape))
+	"""
 
-gps_lat_all['avg_build_height'] = map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, bc),gps_lat_all['lat'],gps_lat_all['lon'])
+	#get the number of surroinding buildings for each point
+	gps_lat_all['buildings'] = map(lambda x,y: getSurroundingBuildings([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
 
-ana5 = plt.figure(figsize=(20,10))
-ana5ax1 = ana5.add_subplot(1,1,1)
-ana5ax1.set_title(" Latency {ms} vs Avg Height of Buildings in radius of "+str(r)+" m")
-ana5ax1.scatter(gps_lat_all['avg_build_height'], gps_lat_all[lat_col], color = 'm')
-ana5ax1.set_xlabel(" AVG Building Height {m}")
-ana5ax1.set_ylabel(" Latency {ms}")
-
-"""
-#  ------------- Latency vs Velocity Histogram -----------------
-print("\n---------- DRAW LATENCY VS SPEED HISTOGRAM --------------")
-
-plt.close('all')
-
-
-ana6 = plt.figure(figsize=(20,10))
-ana6ax1 = ana6.add_subplot(1,1,1, projection='3d')
-ana6ax1.set_title("Latency vs Speed Histogram")
-
-latency_min = min(gps_lat_all[lat_col])
-latency_max = max(gps_lat_all[lat_col])
-hist_lv, xedges, yedges = np.histogram2d(gps_lat_all[lat_col],gps_lat_all['speed'], bins=(32,32), range=[ [latency_min, latency_max],[speed_min, speed_max]])
-#hist_rb, xedges, yedges = np.histogram2d(channels[0].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
-#hist_gb, xedges, yedges = np.histogram2d(channels[1].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
-
-# Construct arrays for the anchor positions of the 16 bars.
-#xpos, ypos = np.meshgrid(xedges[:-1] + 1, yedges[:-1] +1, indexing="ij")
-xpos, ypos = np.meshgrid( yedges[:-1]+yedges[1:], xedges[:-1]+xedges[1:])
+	ana4 = plt.figure(figsize=(20,10))
+	ana4ax1 = ana4.add_subplot(1,1,1)
+	ana4ax1.set_title(" Latency {ms} vs Number of Buildings in radius of "+str(r)+" m")
+	ana4ax1.scatter(gps_lat_all['buildings'], gps_lat_all[lat_col], color = 'c')
+	ana4ax1.set_xlabel(" Number of Buildings {}")
+	ana4ax1.set_ylabel(" Latency {ms}")
+	#ana4ax1.set_xlim(-1,300)
+	
+	#  ------------- LATENCY VS AVERAGE BUILDING HEIGHT GRAPH-----------------
+	
+	print("\n---------- DRAW LATENCY VS AVERAGE BUILDING HEIGHT --------------")
 
 
-xpos = xpos.flatten()/2.
-ypos = ypos.flatten()/2.
-zpos = np.zeros_like(xpos)
+	gps_lat_all['avg_build_height'] = map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
+
+	ana5 = plt.figure(figsize=(20,10))
+	ana5ax1 = ana5.add_subplot(1,1,1)
+	ana5ax1.set_title(" Latency {ms} vs Avg Height of Buildings in radius of "+str(r)+" m")
+	ana5ax1.scatter(gps_lat_all['avg_build_height'], gps_lat_all[lat_col], color = 'm')
+	ana5ax1.set_xlabel(" AVG Building Height {m}")
+	ana5ax1.set_ylabel(" Latency {ms}")
+
+	
+	#  ------------- Latency vs Velocity Histogram -----------------
+	print("\n---------- DRAW LATENCY VS SPEED HISTOGRAM --------------")
+
+	plt.close('all')
+
+
+	ana6 = plt.figure(figsize=(20,10))
+	ana6ax1 = ana6.add_subplot(1,1,1, projection='3d')
+	ana6ax1.set_title("Latency vs Speed Histogram")
+
+	latency_min = min(gps_lat_all[lat_col])
+	latency_max = max(gps_lat_all[lat_col])
+	hist_lv, xedges, yedges = np.histogram2d(gps_lat_all[lat_col],gps_lat_all['speed'], bins=(32,32), range=[ [latency_min, latency_max],[speed_min, speed_max]])
+	#hist_rb, xedges, yedges = np.histogram2d(channels[0].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
+	#hist_gb, xedges, yedges = np.histogram2d(channels[1].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
+
+	# Construct arrays for the anchor positions of the 16 bars.
+	#xpos, ypos = np.meshgrid(xedges[:-1] + 1, yedges[:-1] +1, indexing="ij")
+	xpos, ypos = np.meshgrid( yedges[:-1]+yedges[1:], xedges[:-1]+xedges[1:])
+
+
+	xpos = xpos.flatten()/2.
+	ypos = ypos.flatten()/2.
+	zpos = np.zeros_like(xpos)
 
 
 
-# Construct arrays with the dimensions for the 16 bars.
-dx = xedges[1]-xedges[0]
-dy = yedges[1]-yedges[0]
-dz = hist_lv.flatten()
+	# Construct arrays with the dimensions for the 16 bars.
+	dx = xedges[1]-xedges[0]
+	dy = yedges[1]-yedges[0]
+	dz = hist_lv.flatten()
 
-cmap = plt.get_cmap('jet') # Get desired colormap - you can change this!
-max_height = np.max(dz)   # get range of colorbars so we can normalize
-min_height = np.min(dz)
-# scale each z to [0,1], and get their rgb values
-colors = [cmap((k-min_height)/max_height) for k in dz] 
-ana6ax1.bar3d(ypos, xpos, zpos, dx, dy, dz, color=colors, zsort='average')
-ana6ax1.set_ylabel("Speed {km/h}")
-ana6ax1.set_xlabel("Latency {ms}")
-
-
-#  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
-
-ana1.savefig(save_dir+file_name+"_lat_time_speed_all.jpg")
-ana2.savefig(save_dir+file_name+"_lat_speed_all.jpg")
-#ana3.savefig(save_dir+file_name+"_lat_antennas_all.jpg")
-ana6.savefig(save_dir+file_name+"latency_speed_hist.jpg")
+	cmap = plt.get_cmap('jet') # Get desired colormap - you can change this!
+	max_height = np.max(dz)   # get range of colorbars so we can normalize
+	min_height = np.min(dz)
+	# scale each z to [0,1], and get their rgb values
+	colors = [cmap((k-min_height)/max_height) for k in dz] 
+	ana6ax1.bar3d(ypos, xpos, zpos, dx, dy, dz, color=colors, zsort='average')
+	ana6ax1.set_ylabel("Speed {km/h}")
+	ana6ax1.set_xlabel("Latency {ms}")
 
 
-data_dic["latency_speed_time"] = file_name+"_lat_time_speed_all.jpg"
-data_dic["latency_speed"] = file_name+"_lat_speed_all.jpg"
-#data_dic["latency_antennas"] = file_name+"_lat_antennas_all.jpg"
-#data_dic["lat_gps_cam2"] = file_name+"_latency_map_cam2.jpg"
-#data_dic["lat_gps_cam3"] = file_name+"_latency_map_cam3.jpg"
-data_dic["latency_speed_hist"] = file_name+"latency_speed_hist.jpg"
+	#  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
+
+	ana1.savefig(save_dir+file_name+"_lat_time_speed_all.jpg")
+	ana2.savefig(save_dir+file_name+"_lat_speed_all.jpg")
+	#ana3.savefig(save_dir+file_name+"_lat_antennas_all.jpg")
+	ana6.savefig(save_dir+file_name+"latency_speed_hist.jpg")
 
 
-plt.show()
+	data_dic["latency_speed_time"] = file_name+"_lat_time_speed_all.jpg"
+	data_dic["latency_speed"] = file_name+"_lat_speed_all.jpg"
+	#data_dic["latency_antennas"] = file_name+"_lat_antennas_all.jpg"
+	#data_dic["lat_gps_cam2"] = file_name+"_latency_map_cam2.jpg"
+	#data_dic["lat_gps_cam3"] = file_name+"_latency_map_cam3.jpg"
+	data_dic["latency_speed_hist"] = file_name+"latency_speed_hist.jpg"
 
-plt.close('all')
+
+	plt.show()
+
+	plt.close('all')
 
 
 # ////////////////////////////////////////
 #
-#               PLOT DATA IN MPLLEAFLET
+#               PLOT COLORBARS FOR MPLLEAFLET
 #
 # ////////////////////////////////////////
-print("\n---------- PLOT DATA IN MPLLEAFLET --------------")
-
 #Plot color bars first
 rect = 0.1,0.05,0.45,0.9
 figw = 1.5
 figh = 14
-colorbar5 = plt.figure(figsize=(figw,figh))
-colorbar5ax1 = colorbar5.add_axes(rect)
-latency_max = max(gps_lat_all[lat_col])
-latency_min = min(gps_lat_all[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb5 = mpl.colorbar.ColorbarBase(colorbar5ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb5.set_label('{ms}')
-cb5.set_ticks(ticks)
+
+if(True):
+
+	print("\n---------- PLOT DATA IN MPLLEAFLET --------------")
 
 
-colorbar0 = plt.figure(figsize=(figw,figh))
-colorbar0ax1 = colorbar0.add_axes(rect)
-latency_max = max(gps_lat_cam0[lat_col])
-latency_min = min(gps_lat_cam0[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb0 = mpl.colorbar.ColorbarBase(colorbar0ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb0.set_label('{ms}')
-cb0.set_ticks(ticks)
-
-colorbar1 = plt.figure(figsize=(figw,figh))
-colorbar1ax1 = colorbar1.add_axes(rect)
-latency_max = max(gps_lat_cam1[lat_col])
-latency_min = min(gps_lat_cam1[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb1 = mpl.colorbar.ColorbarBase(colorbar1ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb1.set_label('{ms}')
-cb1.set_ticks(ticks)
-
-colorbar2 = plt.figure(figsize=(figw,figh))
-colorbar2ax1 = colorbar2.add_axes(rect)
-latency_max = max(gps_lat_cam2[lat_col])
-latency_min = min(gps_lat_cam2[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb2 = mpl.colorbar.ColorbarBase(colorbar2ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb2.set_label('{ms}')
-cb2.set_ticks(ticks)
-
-colorbar3 = plt.figure(figsize=(figw,figh))
-colorbar3ax1 = colorbar3.add_axes(rect)
-latency_max = max(gps_lat_cam3[lat_col])
-latency_min = min(gps_lat_cam3[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb3 = mpl.colorbar.ColorbarBase(colorbar3ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb3.set_label('{ms}')
-cb3.set_ticks(ticks)
-
-colorbar4 = plt.figure(figsize=(figw,figh))
-colorbar4ax1 = colorbar4.add_axes(rect)
-latency_max = max(gps_lat_cam4[lat_col])
-latency_min = min(gps_lat_cam4[lat_col])
-ticks = np.linspace(latency_min, latency_max, 10)
-norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
-cb4 = mpl.colorbar.ColorbarBase(colorbar4ax1, cmap=color_map, norm=norm, orientation='vertical')
-cb4.set_label('{ms}')
-cb4.set_ticks(ticks)
-
-colorbar5.savefig(save_dir+file_name+"_colorbar_map_all.jpg")
-colorbar0.savefig(save_dir+file_name+"_colorbar_map_cam0.jpg")
-colorbar1.savefig(save_dir+file_name+"_colorbar_map_cam1.jpg")
-colorbar2.savefig(save_dir+file_name+"_colorbar_map_cam2.jpg")
-colorbar3.savefig(save_dir+file_name+"_colorbar_map_cam3.jpg")
-colorbar4.savefig(save_dir+file_name+"_colorbar_map_cam4.jpg")
+	colorbar5 = plt.figure(figsize=(figw,figh))
+	colorbar5ax1 = colorbar5.add_axes(rect)
+	latency_max = max(gps_lat_all[lat_col])
+	latency_min = min(gps_lat_all[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb5 = mpl.colorbar.ColorbarBase(colorbar5ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb5.set_label('{ms}')
+	cb5.set_ticks(ticks)
 
 
-data_dic["latency_map_all_colorbar"] = file_name+"_colorbar_map_all.jpg"
-data_dic["latency_map_cam0_colorbar"] = file_name+"_colorbar_map_cam0.jpg"
-data_dic["latency_map_cam1_colorbar"] = file_name+"_colorbar_map_cam1.jpg"
-data_dic["latency_map_cam2_colorbar"] = file_name+"_colorbar_map_cam2.jpg"
-data_dic["latency_map_cam3_colorbar"] = file_name+"_colorbar_map_cam3.jpg"
-data_dic["latency_map_cam4_colorbar"] = file_name+"_colorbar_map_cam4.jpg"
+	colorbar0 = plt.figure(figsize=(figw,figh))
+	colorbar0ax1 = colorbar0.add_axes(rect)
+	latency_max = max(gps_lat_cam0[lat_col])
+	latency_min = min(gps_lat_cam0[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb0 = mpl.colorbar.ColorbarBase(colorbar0ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb0.set_label('{ms}')
+	cb0.set_ticks(ticks)
 
-plt.close('all')
+	colorbar1 = plt.figure(figsize=(figw,figh))
+	colorbar1ax1 = colorbar1.add_axes(rect)
+	latency_max = max(gps_lat_cam1[lat_col])
+	latency_min = min(gps_lat_cam1[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb1 = mpl.colorbar.ColorbarBase(colorbar1ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb1.set_label('{ms}')
+	cb1.set_ticks(ticks)
+
+	colorbar2 = plt.figure(figsize=(figw,figh))
+	colorbar2ax1 = colorbar2.add_axes(rect)
+	latency_max = max(gps_lat_cam2[lat_col])
+	latency_min = min(gps_lat_cam2[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb2 = mpl.colorbar.ColorbarBase(colorbar2ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb2.set_label('{ms}')
+	cb2.set_ticks(ticks)
+
+	colorbar3 = plt.figure(figsize=(figw,figh))
+	colorbar3ax1 = colorbar3.add_axes(rect)
+	latency_max = max(gps_lat_cam3[lat_col])
+	latency_min = min(gps_lat_cam3[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb3 = mpl.colorbar.ColorbarBase(colorbar3ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb3.set_label('{ms}')
+	cb3.set_ticks(ticks)
+
+	colorbar4 = plt.figure(figsize=(figw,figh))
+	colorbar4ax1 = colorbar4.add_axes(rect)
+	latency_max = max(gps_lat_cam4[lat_col])
+	latency_min = min(gps_lat_cam4[lat_col])
+	ticks = np.linspace(latency_min, latency_max, 10)
+	norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+	cb4 = mpl.colorbar.ColorbarBase(colorbar4ax1, cmap=color_map, norm=norm, orientation='vertical')
+	cb4.set_label('{ms}')
+	cb4.set_ticks(ticks)
+
+	colorbar5.savefig(save_dir+file_name+"_colorbar_map_all.jpg")
+	colorbar0.savefig(save_dir+file_name+"_colorbar_map_cam0.jpg")
+	colorbar1.savefig(save_dir+file_name+"_colorbar_map_cam1.jpg")
+	colorbar2.savefig(save_dir+file_name+"_colorbar_map_cam2.jpg")
+	colorbar3.savefig(save_dir+file_name+"_colorbar_map_cam3.jpg")
+	colorbar4.savefig(save_dir+file_name+"_colorbar_map_cam4.jpg")
+
+
+	data_dic["latency_map_all_colorbar"] = file_name+"_colorbar_map_all.jpg"
+	data_dic["latency_map_cam0_colorbar"] = file_name+"_colorbar_map_cam0.jpg"
+	data_dic["latency_map_cam1_colorbar"] = file_name+"_colorbar_map_cam1.jpg"
+	data_dic["latency_map_cam2_colorbar"] = file_name+"_colorbar_map_cam2.jpg"
+	data_dic["latency_map_cam3_colorbar"] = file_name+"_colorbar_map_cam3.jpg"
+	data_dic["latency_map_cam4_colorbar"] = file_name+"_colorbar_map_cam4.jpg"
+
+	plt.close('all')
 
 
 ####### CREATE WEB MAP FILES
-print("\n---------- CREATE WEB MAP FILES --------------")
 
-#plt.hold(True)
- 
-a = antenna[ antenna['x_merc'] <= (max_x+(margin*2)) ]
-a = a[ a['x_merc'] >= (min_x-(margin*2)) ]
-a = a[ a['y_merc'] <= (max_y+(margin*2)) ]
-a = a[ a['y_merc'] >= (min_y-(margin*2)) ]
+if(True):
+	print("\n---------- CREATE WEB MAP FILES --------------")
 
-if(args.y == "5"):
-	map5 = plt.figure(figsize=(20,10))
-	map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
-	map5ax1.set_aspect('equal')
-	print("Drawing Latency Map for All Cameras")
-	gps_lat_all = gps_lat_all.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_all[lat_col])
-	map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)
-	map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
-	#map5ax1.scatter(bc['lon'], bc['lat'], color = 'green', marker='*', s = s2)
+	#plt.hold(True)
+
+	 
+	a = antenna[ antenna['x_merc'] <= (max_x+(margin*2)) ]
+	a = a[ a['x_merc'] >= (min_x-(margin*2)) ]
+	a = a[ a['y_merc'] <= (max_y+(margin*2)) ]
+	a = a[ a['y_merc'] >= (min_y-(margin*2)) ]
+
+	if(args.y == "5"):
+		map5 = plt.figure(figsize=(20,10))
+		map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
+		map5ax1.set_aspect('equal')
+		print("Drawing Latency Map for All Cameras")
+		gps_lat_all = gps_lat_all.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_all[lat_col])
+		map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)
+		map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+		#map5ax1.scatter(bc['lon'], bc['lat'], color = 'green', marker='*', s = s2)
 
 
-if(args.y == "0"):
-	map0 = plt.figure(figsize=(20,10))
-	map0ax1 = map0.add_subplot(1,1,1)
-	map0ax1.set_aspect('equal')
-	print("Drawing Latency Map for Camera 0")
-	gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_cam0[lat_col])
-	map0ax1.scatter(gps_lat_cam0['lon'], gps_lat_cam0['lat'], color = colores, s = s1, alpha = alpha)
-	map0ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	if(args.y == "0"):
+		map0 = plt.figure(figsize=(20,10))
+		map0ax1 = map0.add_subplot(1,1,1)
+		map0ax1.set_aspect('equal')
+		print("Drawing Latency Map for Camera 0")
+		gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_cam0[lat_col])
+		map0ax1.scatter(gps_lat_cam0['lon'], gps_lat_cam0['lat'], color = colores, s = s1, alpha = alpha)
+		map0ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
-if(args.y == "1"):
-	map1 = plt.figure(figsize=(20,10))
-	map1ax1 = map1.add_subplot(1,1,1)
-	map1ax1.set_aspect('equal')
-	print("Drawing Latency Map for Camera 1")
-	gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_cam1[lat_col])
-	map1ax1.scatter(gps_lat_cam1['lon'], gps_lat_cam1['lat'], color = colores, s = s1, alpha = alpha)
-	map1ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	if(args.y == "1"):
+		map1 = plt.figure(figsize=(20,10))
+		map1ax1 = map1.add_subplot(1,1,1)
+		map1ax1.set_aspect('equal')
+		print("Drawing Latency Map for Camera 1")
+		gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_cam1[lat_col])
+		map1ax1.scatter(gps_lat_cam1['lon'], gps_lat_cam1['lat'], color = colores, s = s1, alpha = alpha)
+		map1ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
-if(args.y == "2"):
-	map2 = plt.figure(figsize=(20,10))
-	map2ax1 = map2.add_subplot(1,1,1)
-	map2ax1.set_aspect('equal')
-	print("Drawing Latency Map for Camera 2")
-	gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_cam2[lat_col])
-	map2ax1.scatter(gps_lat_cam2['lon'], gps_lat_cam2['lat'], color = colores, s = s1, alpha = alpha)
-	map2ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	if(args.y == "2"):
+		map2 = plt.figure(figsize=(20,10))
+		map2ax1 = map2.add_subplot(1,1,1)
+		map2ax1.set_aspect('equal')
+		print("Drawing Latency Map for Camera 2")
+		gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_cam2[lat_col])
+		map2ax1.scatter(gps_lat_cam2['lon'], gps_lat_cam2['lat'], color = colores, s = s1, alpha = alpha)
+		map2ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
-if(args.y == "3"):
-	map3 = plt.figure(figsize=(20,10))
-	map3ax1 = map3.add_subplot(1,1,1)
-	map3ax1.set_aspect('equal')
-	print("Drawing Latency Map for Camera 3")
-	gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_cam3[lat_col])
-	map3ax1.scatter(gps_lat_cam3['lon'], gps_lat_cam3['lat'], color = colores, s = s1, alpha = alpha)
-	map3ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	if(args.y == "3"):
+		map3 = plt.figure(figsize=(20,10))
+		map3ax1 = map3.add_subplot(1,1,1)
+		map3ax1.set_aspect('equal')
+		print("Drawing Latency Map for Camera 3")
+		gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_cam3[lat_col])
+		map3ax1.scatter(gps_lat_cam3['lon'], gps_lat_cam3['lat'], color = colores, s = s1, alpha = alpha)
+		map3ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
-if(args.y == "4"):
-	map4 = plt.figure(figsize=(20,10))
-	map4ax1 = map4.add_subplot(1,1,1)
-	map4ax1.set_aspect('equal')
-	print("Drawing Latency Map for Camera 3")
-	gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col],ascending=False)
-	colores = getColorMap(gps_lat_cam4[lat_col])
-	map4ax1.scatter(gps_lat_cam4['lon'], gps_lat_cam4['lat'], color = colores, s = s1, alpha = alpha)
-	map4ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
+	if(args.y == "4"):
+		map4 = plt.figure(figsize=(20,10))
+		map4ax1 = map4.add_subplot(1,1,1)
+		map4ax1.set_aspect('equal')
+		print("Drawing Latency Map for Camera 3")
+		gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col],ascending=False)
+		colores = getColorMap(gps_lat_cam4[lat_col])
+		map4ax1.scatter(gps_lat_cam4['lon'], gps_lat_cam4['lat'], color = colores, s = s1, alpha = alpha)
+		map4ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
-mplleaflet.show()
-# show Graphs in screen
-#plt.show()
+	mplleaflet.show()
+	# show Graphs in screen
+	#plt.show()
 
-plt.close('all')
+	plt.close('all')
 
 
 # ////////////////////////////////////////
@@ -1507,25 +1541,25 @@ plt.close('all')
 
 print("\n---------- CREATE REPORT FILE --------------")
 
+if(True):
+	date = str(gps_lat_all.index.values[0])
+	data_dic["date"]=date
+	data_dic["name"]=args.t
+	data_dic["video_res"]=args.r
+	data_dic["track_image_path"]=args.a
+	data_dic["data_image_path"] = args.k
 
-date = str(gps_lat_all.index.values[0])
-data_dic["date"]=date
-data_dic["name"]=args.t
-data_dic["video_res"]=args.r
-data_dic["track_image_path"]=args.a
-data_dic["data_image_path"] = args.k
 
 
-
-myfile = codecs.open('fm2.md','r', encoding='utf-8' )
-data=myfile.read()
-myfile.close()
-#print data
-rep_for = data.format(**data_dic)
-#print(rep_for)
-myfile = codecs.open(save_dir+'report.md','w', encoding='utf-8' )
-myfile.write(rep_for)
-myfile.close()
+	myfile = codecs.open('fm2.md','r', encoding='utf-8' )
+	data=myfile.read()
+	myfile.close()
+	#print data
+	rep_for = data.format(**data_dic)
+	#print(rep_for)
+	myfile = codecs.open(save_dir+'report.md','w', encoding='utf-8' )
+	myfile.write(rep_for)
+	myfile.close()
 
 
 # ////////////////////////////////////////
@@ -1607,11 +1641,13 @@ if(False):
 
 print("\n---------- TRY TO RECOGNIZE PATTERNS --------------")
 
+#gps_lat_all.to_csv("data.csv", sep=",",header=True)
 if(False):
 
+	# original data import
+	o_data = pd.read_csv("data.csv", sep=",", header = 0)
+	data1 = o_data.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height', lat_col]]
 
-
-	data1 = gps_lat_all.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height', lat_col]]
 
 	#print(data1.head())
 	#print(data1.cov())
@@ -1620,7 +1656,7 @@ if(False):
 	data = data1.loc[:,['antennas','speed','ele','buildings','avg_build_height']].values
 
 	#print(data[0:5])
-	print(data.shape[1])
+	#print(data.shape[1])
 	#y = gps_lat_all.iloc[:,'latency'].values
 	data_std = StandardScaler().fit_transform(data)
 
@@ -1668,14 +1704,14 @@ if(False):
 	matrix_w = np.hstack((eig_pairs[0][1].reshape(data_std.shape[1],1), eig_pairs[1][1].reshape(data_std.shape[1],1)))
 	matrix_w2 = np.hstack((eig_pairs[0][1].reshape(data_std.shape[1],1), eig_pairs[1][1].reshape(data_std.shape[1],1),eig_pairs[2][1].reshape(data_std.shape[1],1) ))
 
-	print("Transformation")
-	print(matrix_w)
+	#print("Transformation")
+	#print(matrix_w)
 
 	# Reproject data
 	y = data_std.dot(matrix_w)
 	y2 = data_std.dot(matrix_w2)
-	print("Reprojected")
-	print(y[0:5])
+	#print("Reprojected")
+	#print(y[0:5])
 	# use this cmap
 	name = 'RdYlGn'
 	color_map=plt.get_cmap(name)
@@ -1720,4 +1756,8 @@ if(False):
 
 
 
-	plt.show()
+	#plt.show()
+
+
+
+
