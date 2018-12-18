@@ -43,7 +43,7 @@ import matplotlib.pyplot as plt
 # Have colormaps separated into categories:
 # http://matplotlib.org/examples/color/colormaps_reference.html
 cmaps = [('Perceptually Uniform Sequential', [
-            'viridis', 'plasma', 'inferno', 'magma']),
+            'viridis_r', 'plasma', 'inferno', 'magma']),
          ('Sequential', [
             'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
             'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
