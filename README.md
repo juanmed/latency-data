@@ -24,7 +24,7 @@ and overwriting the in the folder QGIS_HOME\apps\qgis\resources\ . Then when you
 
 This script will probably only run in Ubuntu. To run it, save logAnalysis.py, and the log files in a folder in the same directory. 
 
-First you need to run logAnalysis.py, which will generate all the graphs and several csv documents. Then you need to run web_map_image.py to generate all the latency maps. This maps will be displayed in the web browser and you need to save one by one. 
+First you need to run logAnalysis.py, which will generate all the graphs and several csv documents. Then you need to run web_map_draw.py to generate all the latency maps. This maps will be displayed in the web browser and you need to save one by one. 
 
 Then use the following command:
 
