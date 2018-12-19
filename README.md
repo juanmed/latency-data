@@ -43,8 +43,13 @@ python web_map_image.py -f 20181214/20181214B/2018_12_14_07_10_42.txt -y 0
 
 The final parameter "y" indicates the camera number for which the latency map will be drawn. It goes from 0 to 11 where:
 
+
 0-4  Latency for camera x
+
 5    Latency All Cameras
+
 6-10 PC Clock latency for camera X
+
 11   PC Clock latency for all cameras
+
   
