@@ -69,7 +69,7 @@ def getDropRate(a):
 	minseq = min(c['seq'])
 	maxseq = max(c['seq'])
 	#print ("min seq: "+str(minseq)+" max seq: "+str(maxseq))
-	m = k*(maxseq-minseq)
+	m = k*(maxseq-minseq+1)
 	#print("m: "+str(m))
 	# get droprate
 	dr = (1.0-(n+d)*1.0/m)*100.0
@@ -182,6 +182,64 @@ def drawrawLatencyGraph(data,ax,stats,camnumber,col,data_dic):
 	data_dic[key] = std
 	return data_dic
 
+# draw PC Network Latency minus Latency Graph
+def draw_PCNetworkLatency_Latency_Diff_Graph(data,ax,stats,camnumber,col,data_dic):
+
+	#cam0.plot(x = 'seq', y ='latency', label = 'Camera 0' , legend = True)
+	a = data['pc_network_latency'] - data['latency']
+	ax.plot(data['seq'],a, color = col)
+	ax.set_xlabel('Sequence ')
+	ax.set_ylabel('PC Network Latency - Latency (Difference)  {ms}')
+	minlat = min(a)
+	maxlat = max(a)
+	avg = a.mean()
+	std = a.std()
+	ax.set_title(" Min: {:.2f}".format(minlat)+", max: {:.2f}".format(maxlat)+", mean: {:.2f}".format(avg)+" std: {:.2f}".format(std))
+
+	#draw line on mean
+	meanline = np.ones_like(data['seq'])*avg
+	ax.plot(data['seq'],meanline, color = 'c')
+
+	# fill data for md file creation later
+	# pnlml = pc clock latency minus latency
+	key = "cam"+str(camnumber)+"_pnlml_raw_avg"
+	data_dic[key]=avg
+	key = "cam"+str(camnumber)+"_pnlml_raw_min"
+	data_dic[key] = minlat
+	key = "cam"+str(camnumber)+"_pnlml_raw_max"
+	data_dic[key] = maxlat
+	key = "cam"+str(camnumber)+"_pnlml_raw_std"
+	data_dic[key] = std
+	return data_dic
+
+# draw PC Clock Network Latency Graph
+def draw_PCClock_Network_LatencyGraph(data,ax,stats,camnumber,col,data_dic):
+
+	#cam0.plot(x = 'seq', y ='latency', label = 'Camera 0' , legend = True)
+	ax.plot(data['seq'],data['pc_network_latency'], color = col)
+	ax.set_xlabel('Sequence ')
+	ax.set_ylabel('PC Clock Network Latency {ms}')
+	minlat = stats.loc['min','pc_network_latency']
+	maxlat = stats.loc['max','pc_network_latency']
+	avg = stats.loc['mean','pc_network_latency']
+	std = stats.loc['std','pc_network_latency']
+	ax.set_title(" Min: {:.2f}".format(minlat)+", max: {:.2f}".format(maxlat)+", mean: {:.2f}".format(avg)+" std: {:.2f}".format(std))
+
+	#draw line on mean
+	meanline = np.ones_like(data['seq'])*avg
+	ax.plot(data['seq'],meanline, color = 'c')
+
+	# fill data for md file creation later
+	key = "cam"+str(camnumber)+"_pc_network_avg"
+	data_dic[key]=avg
+	key = "cam"+str(camnumber)+"_pc_network_min"
+	data_dic[key] = minlat
+	key = "cam"+str(camnumber)+"_pc_network_max"
+	data_dic[key] = maxlat
+	key = "cam"+str(camnumber)+"_pc_network_std"
+	data_dic[key] = std
+	return data_dic
+
 # draw a Latency Graph
 def drawSatelliteGraph(data,ax,stats,camnumber,col,data_dic):
 
@@ -256,6 +314,26 @@ def drawCombinedLatencyGraph(data,ax,stats,camnumber,col,data_dic):
 	ax.plot(data['seq'],meanline2, color = 'k', linestyle = '--')
 
 	return data_dic
+
+# draw combined a Latency Graph and PC Network Graph
+def drawCombinedLatency_PCNetworkLatency_Graph(data,ax,stats,camnumber,col,data_dic):
+
+	#cam0.plot(x = 'seq', y ='latency', label = 'Camera 0' , legend = True)
+	ax.plot(data['seq'],data['latency'], color = 'k', label = 'Latency')
+	ax.plot(data['seq'],data['pc_network_latency'], color = col, label = 'PC Clock Network Latency')
+	ax.set_xlabel('Sequence ')
+	ax.set_ylabel('Latency {ms}')
+	ax.legend(loc='upper right', shadow=True, fontsize='large')
+	ax.set_title("PC Clock Network Latency, Latency vs Sequence")
+
+	#draw line on mean
+	meanline = np.ones_like(data['seq'])*data['latency'].mean()
+	ax.plot(data['seq'],meanline, color = 'k')
+	meanline2 = np.ones_like(data['seq'])*data['pc_network_latency'].mean()
+	ax.plot(data['seq'],meanline2, color = col, linestyle = '--')
+
+	return data_dic
+
 
 # draw Difference a Latency Graph
 def drawDifferenceLatencyGraph(data,ax,stats,camnumber,col,data_dic):
@@ -426,6 +504,28 @@ def drawGraphs(data_dic):
 		fig60ax1 = fig60.add_subplot(1,1,1)																										
 		data_dic = drawSatelliteGraph(clog,fig60ax1, clogstats,0,'r',data_dic)
 
+		print (" *************** DRAWING PC CLOCK NETWORK LATENCY ALL **********************")																																																																																	
+		fig61 = plt.figure(figsize=(20,10))
+		fig61.suptitle('PC Clock Network Latency vs Sequence from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
+		fig61ax1 = fig61.add_subplot(1,1,1)																										
+		data_dic = draw_PCClock_Network_LatencyGraph(clog,fig61ax1, clogstats,0,'r',data_dic)
+
+		print (" *************** DRAWING PC CLOCK NETWORK LATENCY & LATENCY  ALL **********************")																																																																																	
+		fig62 = plt.figure(figsize=(20,10))
+		fig62.suptitle('PC Clock Network Latency and Latency vs Sequence from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
+		fig62ax1 = fig62.add_subplot(1,1,1)																										
+		data_dic = drawCombinedLatency_PCNetworkLatency_Graph(clog,fig62ax1, clogstats,0,'r',data_dic)
+
+		print (" *************** DRAWING PC CLOCK NETWORK LATENCY - LATENCY (DIFFERENCE)  ALL **********************")																																																																																	
+		fig63 = plt.figure(figsize=(20,10))
+		fig63.suptitle('PC Clock Network Latency - Latency from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
+		fig63ax1 = fig63.add_subplot(1,1,1)																										
+		data_dic = draw_PCNetworkLatency_Latency_Diff_Graph(clog,fig63ax1, clogstats,0,'r',data_dic)
+
+		
+		plt.close('all')
+
+
 	if(dohist):
 
 		bins1 = int(args.b)
@@ -524,6 +624,10 @@ def drawGraphs(data_dic):
 
 		fig50.savefig(save_dir+file_name+"_raw_latency_all.jpg")
 		fig60.savefig(save_dir+file_name+"_satellite_all.jpg")
+		fig61.savefig(save_dir+file_name+"_pc_network_latency_all.jpg")
+		fig62.savefig(save_dir+file_name+"_pc_network_latency_with_latency_all.jpg")
+		fig63.savefig(save_dir+file_name+"_pclml_all.jpg")
+
 
 
 		data_dic["latency_cam0"] = file_name+"_latency_Camera0.jpg"
@@ -552,6 +656,10 @@ def drawGraphs(data_dic):
 
 		data_dic["raw_latency_all"] = file_name+"_raw_latency_all.jpg"
 		data_dic["satellite_all"] = file_name+"_satellite_all.jpg"
+		data_dic["pc_network_latency"] = file_name+"_pc_network_latency_all.jpg"
+		data_dic["pc_network_latency_with_latency"] = file_name+"_pc_network_latency_with_latency_all.jpg"
+		data_dic["pc_network_latency_minus_latency"] = file_name+"_pclml_all.jpg"
+
 
 		data_dic["hist_cam0"] = file_name+"_hist_Camera0.jpg"
 		data_dic["hist_cam1"] = file_name+"_hist_Camera1.jpg"
@@ -833,6 +941,9 @@ def alignGPSandLatency(latency_data, gps_data,option):
 	# add the rest of the columns
 	gps_with_latency['sat'] = latency_data['sat']
 	gps_with_latency['seq'] = latency_data['seq']
+	gps_with_latency['dif_latency'] = latency_data['dif_latency']
+	gps_with_latency['pc_network_latency'] = latency_data['pc_network_latency']
+
 	return gps_with_latency
 
 # get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
@@ -954,11 +1065,11 @@ if __name__ == '__main__':
 	log_raw = pd.read_csv(file_path, sep = ",", header = None)
 	#import file depending on format version
 	if args.x == "2":  # new format
-		log_raw.columns = ["id","seq","send_time","receive_time", "size"]    #new format
+		log_raw.columns = ["id","seq","send_time","recv_time", "size"]    #new format
 	if args.x == "1":   # old format
 		log_raw.columns = ["id","seq","size", "latency","time"]				# old format
 	if args.x == "3":   # newest format 
-		log_raw.columns = ["id","seq","send_time","receive_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","size", "lon", "lat", "sat" ]				# newest format 20181214
+		log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]				# newest format 20181214
 		
 
 	print ("---------- IMPORT RAW LOG DATA --------------")
@@ -973,7 +1084,7 @@ if __name__ == '__main__':
 	if args.x == "1":
 		clog = convertData(clog, [int,int,int,int,datetime])				#old format
 	if (args.x == "3"):
-		clog = convertData(clog, [int,int,int,int,int,int,int,int,int,float,float,int])     #newest format
+		clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,float,float,int])     #newest format
 
 		#print("LATITUDE IMPORTADA")
 		#print(clog['lat'].head())
@@ -992,7 +1103,7 @@ if __name__ == '__main__':
 	# Calculate Latency
 	if 'latency' not in clog.columns:
 		if args.x == "2":
-			clog['latency'] = clog['receive_time'] - clog["send_time"]
+			clog['latency'] = clog['recv_time'] - clog["send_time"]
 		if args.x == "3":
 			clog['latency'] = clog['recv_UTC'] - clog["send_UTC"]
 
@@ -1017,21 +1128,24 @@ if __name__ == '__main__':
 			gps_data_s = gps_data_s.reset_index()
 			#print(gps_data_s)
 
-	seqthreshold = 100000
-	clog = clog[ clog['latency'] < seqthreshold] 
+
+	# ------------------------------- CAREFUL
+	#seqthreshold = 100000
+	#clog = clog[ clog['latency'] < seqthreshold] 
 
 	# Calculate offset1
 	#print(clog.at[0,'send_UTC'])
 	#print(clog.at[0,'send_time'])
 	#print(clog.at[0,'recv_UTC'])
-	#print(clog.at[0,'receive_time'])
+	#print(clog.at[0,'recv_time'])
 	offset0 = clog.at[0,'send_UTC'] - clog.at[0,'send_time']
-	offset1 = clog.at[0,'recv_UTC'] - clog.at[0,'receive_time']
+	offset1 = clog.at[0,'recv_UTC'] - clog.at[0,'recv_time']
 	#print('Offset 0 {}'.format(offset0))
 	#print('Offset 1 {}'.format(offset1))
-	clog['pc_latency'] = map(lambda x,y: x-y-offset0+offset1, clog['receive_time'], clog['send_time'])
+	clog['pc_latency'] = map(lambda x,y: x-y-offset0+offset1, clog['recv_time'], clog['send_time'])
 	clog['raw_UTC_latency'] = clog['send_raw_UTC']- clog['recv_raw_UTC']
 	clog['dif_latency'] = clog['pc_latency'] - clog['latency']
+	clog['pc_network_latency'] = clog['recv_UTC'] - clog['send_UTC'] + clog['send_time'] - clog["local_send_time"]
 	print(clog.head())
 	#print("Clean log:\n {}".format(clog.head(10)))
 	#print(clog.dtypes)
@@ -2440,7 +2554,7 @@ if __name__ == '__main__':
 
 
 
-	if(False):
+	if(True):
 
 		# original data import
 		o_data = pd.read_csv("data.csv", sep=",", header = 0)
@@ -2554,7 +2668,7 @@ if __name__ == '__main__':
 
 
 
-		#plt.show()
+		plt.show()
 
 
 

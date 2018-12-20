@@ -40,10 +40,10 @@
 |2|{cam2_min_pc:.2f}|{cam2_max_pc:.2f}|{cam2_avg_pc:.2f}|{cam2_std_pc:.2f}|
 |3|{cam3_min_pc:.2f}|{cam3_max_pc:.2f}|{cam3_avg_pc:.2f}|{cam3_std_pc:.2f}|
 |4|{cam4_min_pc:.2f}|{cam4_max_pc:.2f}|{cam4_avg_pc:.2f}|{cam4_std_pc:.2f}| 
+<!-- pagebreak -->
 
 ### Latency
 
-<!-- pagebreak -->
 <img src = "{latency_cam0}">
 <img src = "{latency_cam1}">
 <img src = "{latency_cam2}">
@@ -64,6 +64,7 @@
 <img src = "{pc_latency_cam3}">
 <img src = "{pc_latency_cam4}">
 <!-- pagebreak -->
+### PC Clock Latency Histogram
 <img src = "{pc_hist_cam0}">
 <img src = "{pc_hist_cam1}">
 <img src = "{pc_hist_cam2}">
@@ -76,7 +77,16 @@
 <img src = "{com_latency_cam2}">
 <img src = "{com_latency_cam3}">
 <img src = "{com_latency_cam4}">
+<!-- pagebreak -->
 
+### PC Clock Network Latency 
+<img src = "{pc_network_latency}">
+
+### PC Clock Network Latency and Latency
+<img src = "{pc_network_latency_with_latency}">
+
+### PC Clock Network Latency minus Latency
+<img src = "{pc_network_latency_minus_latency}">
 <!-- pagebreak -->
 
 ### PC Clock Latency and Latency Difference
@@ -101,6 +111,9 @@
 <!-- pagebreak -->
 
 ## Latency over Route
+
+<img src = "latency_height_map.png">
+
 
 ### Maximum Latency for all cameras
 Map | Index
@@ -133,6 +146,10 @@ Map | Index
 
 
 ### Maximum PC Clock Latency for all cameras
+
+<img src = "pc_latency_height_map.png">
+
+
 Map | Index
 :-------------------------:|:-------------------------:
 ![](pc_latency_map_all.png)  | ![]({pc_latency_map_all_colorbar})
@@ -159,8 +176,14 @@ Map | Index
 :-------------------------:|:-------------------------:
 ![](pc_latency_map_cam4.png)  |  ![]({pc_latency_map_cam4_colorbar})
 
+
+### PC Clock Latency and Latency Difference
+
+<img src = "dif_latency_height_map.png">
+
+
 <!-- pagebreak -->
-### Satellite Count Map
+### GPS Satellite Count Map
 Map | Index
 :-------------------------:|:-------------------------:
 ![](satellite_map.png)  | ![]({satellite_map_colorbar})
