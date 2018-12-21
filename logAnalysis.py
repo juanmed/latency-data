@@ -129,17 +129,99 @@ def createCommandLineParser():
 # a general function to draw graphs
 # this is a main bottleneck when making updates, since for every new graph required,
 # a completely new function is copied, but a new function that changes only in few parameters
-def graphTimeSeries(data_series, time_series, colors, linestyles):
+def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_name, units, title, save_directory, dic):
 	"""
 		Graph several data series with the same horizontal axis.
 		The various data series should be a list or an iterable in data_series, time_series should
 		be a single list. "colors" and "linestyles" should be the same size as data_series.
+		"names" should contain a list of names of the data series, in the same order as data_series
+		"units" should contain x-axis units label and y-axis units label, in that order
 	"""
 	# create a fig that spans the whole screen
 	fig = plt.figure(figsize=(20,10))
-	for (data,color,lines) in zip(data_series,colors,linestyles):
+	fig.suptitle(",".join(names)+" "+title, fontsize='x-large', fontweight = 'bold')
+	
+	# define dimensions of graph area
+	rect = 0.05,0.05,0.9,0.85
+	ax = fig.add_axes(rect)
 
+	# iterate over all data series
+	for (data, col, lines, name) in zip(data_series, colors, linestyles, names):
+		ax.plot(time_series,data,color=col, linestyle=lines, label= name)
+		meanline = np.ones_like(data)*data.mean()
+		ax.plot(time_series,meanline, color=col, linestyle = lines)
 
+	# if only 1 data series sent, calculate statistics
+	if(len(data_series) == 1):
+		min_val = min(data_series[0])
+		max_val = max(data_series[0])
+		avg = data_series[0].mean()
+		std = data_series[0].std()
+		ax.set_title(names[0]+" min: {:.2f}".format(min_val)+", max: {:.2f}".format(max_val)+", mean: {:.2f}".format(avg)+" std: {:.2f}".format(std))
+		
+		# fill data for md file creation later
+		key = names[0]+"_min"
+		dic[key] = min_val
+
+		key = names[0]+"_max"
+		dic[key] = max_val
+
+		key = names[0]+"_avg"
+		dic[key]=avg
+
+		key = names[0]+"_std"
+		dic[key] = std
+
+	# if not, show names only
+	else:
+		ax.set_title(", ".join(names)+" vs "+time_name)
+
+	# set other axis parameters
+	ax.set_xlabel(units[0])
+	ax.set_ylabel(units[1])
+	ax.legend(loc='upper right', shadow=True, fontsize='x-large')
+	
+	# compute name of image as name of all images together... replace blank spaces with underscore
+	img_name = "_".join(names).replace(" ","_")
+	fig.savefig(save_directory+img_name+".jpg") #dpi = 200
+	dic[img_name] = img_name+".jpg"
+
+	return dic
+
+def drawCamerasGPSLatency(data,dic):
+
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","GPS Latency {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["latency"]], data['seq'], ["r"], ["-"], ["GPS Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['id']), colors):
+		print(" - Camera "+str(cam_id)+" GPS Latency Graph")
+		cam_data = data[ data['id'] == cam_id ]
+		units = ["Sequence Number","GPS Latency {ms}"]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" GPS Latency"], "Sequence", units, title, save_dir, dic1)
+
+	return dic1
+
+def drawCamerasPCCLock_Latency(data,dic):
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","PC Clock Latency {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["pc_latency"]], data['seq'], ["r"], ["-"], ["PC Clock Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['id']), colors):
+		print(" - Camera "+str(cam_id)+" PC Clock Latency Graph")
+		cam_data = data[ data['id'] == cam_id ]
+		units = ["Sequence Number","PC Clock Latency {ms}"]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['pc_latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" PC Clock Latency"], "Sequence", units, title, save_dir, dic1)
+
+	return dic1
 
 # draw a Latency Graph
 def drawLatencyGraph(data,ax,stats,camnumber,col,data_dic):
@@ -1167,6 +1249,17 @@ if __name__ == '__main__':
 	#print("GPS Data log:\n {}".format(gps_data_s.head(10)))
 
 
+	init = clog.at[clog.index.values[0],'seq']
+	clog['seq'] = np.arange(0,len(clog['seq']),1)+init
+	clogstats = clog.describe()
+
+	# draw GPS Latency
+	data_dic = drawCamerasGPSLatency(clog, data_dic)
+	# draw PC Clock Latency
+	data_dic = drawCamerasPCCLock_Latency(clog, data_dic)
+	print(data_dic)
+
+
 	#print(clog.head())
 
 
@@ -1216,9 +1309,7 @@ if __name__ == '__main__':
 
 
 
-	init = clog.at[clog.index.values[0],'seq']
-	clog['seq'] = np.arange(0,len(clog['seq']),1)+init
-	clogstats = clog.describe()
+
 
 	# Calculate drop rate
 	drop_rate = getDropRate(log_raw)
@@ -2469,7 +2560,7 @@ if __name__ == '__main__':
 
 
 
-		myfile = codecs.open('fm2.md','r', encoding='utf-8' )
+		myfile = codecs.open('fm3.md','r', encoding='utf-8' )
 		data=myfile.read()
 		myfile.close()
 		#print data
