@@ -126,6 +126,21 @@ def createCommandLineParser():
 	args = parser1.parse_args()
 	return args
 
+# a general function to draw graphs
+# this is a main bottleneck when making updates, since for every new graph required,
+# a completely new function is copied, but a new function that changes only in few parameters
+def graphTimeSeries(data_series, time_series, colors, linestyles):
+	"""
+		Graph several data series with the same horizontal axis.
+		The various data series should be a list or an iterable in data_series, time_series should
+		be a single list. "colors" and "linestyles" should be the same size as data_series.
+	"""
+	# create a fig that spans the whole screen
+	fig = plt.figure(figsize=(20,10))
+	for (data,color,lines) in zip(data_series,colors,linestyles):
+
+
+
 # draw a Latency Graph
 def drawLatencyGraph(data,ax,stats,camnumber,col,data_dic):
 
