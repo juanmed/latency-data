@@ -81,11 +81,15 @@
 <img src = "{pc_hist_cam4}">
 <!-- pagebreak -->
 
-<img src = "{com_latency_cam0}">
-<img src = "{com_latency_cam1}">
-<img src = "{com_latency_cam2}">
-<img src = "{com_latency_cam3}">
-<img src = "{com_latency_cam4}">
+# GPS Latency and PC Clock Latency
+<img src = "{GPS_Latency_PC_Clock_Latency}">
+<img src = "{Camera_0_GPS_Latency_Camera_0_PC_Clock_Latency}">
+<img src = "{Camera_1_GPS_Latency_Camera_1_PC_Clock_Latency}">
+<img src = "{Camera_2_GPS_Latency_Camera_2_PC_Clock_Latency}">
+<img src = "{Camera_3_GPS_Latency_Camera_3_PC_Clock_Latency}">
+<img src = "{Camera_4_GPS_Latency_Camera_4_PC_Clock_Latency}">
+<img src = "{Camera_5_GPS_Latency_Camera_5_PC_Clock_Latency}">
+
 <!-- pagebreak -->
 
 ### PC Clock Network Latency 
@@ -100,11 +104,13 @@
 
 ### PC Clock Latency and Latency Difference
 
-<img src = "{dif_latency_cam0}">
-<img src = "{dif_latency_cam1}">
-<img src = "{dif_latency_cam2}">
-<img src = "{dif_latency_cam3}">
-<img src = "{dif_latency_cam4}">
+<img src = "{PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_0_PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_1_PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_2_PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_3_PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_4_PC_Clock_Latency_minus_GPS_Latency}">
+<img src = "{Camera_5_PC_Clock_Latency_minus_GPS_Latency}">
 
 <!-- pagebreak -->
 

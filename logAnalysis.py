@@ -50,6 +50,9 @@ import re
 key = "AIzaSyCLfa54Y6BLEVS8NQNgZPU8GTtDvEphiwA"
 
 
+# colors available
+# https://www.google.com/imgres?imgurl=https://matplotlib.org/_images/named_colors.png&imgrefurl=https://matplotlib.org/examples/color/named_colors.html&h=500&w=800&tbnid=gr48Zr8aBBoE2M:&q=matplotlib+colors&tbnh=138&tbnw=220&usg=AI4_-kQ5oHUDLwzR9z0wZeqqqmSFAfTJVQ&vet=12ahUKEwjA19L6vLHfAhXH2LwKHVqZAAQQ9QEwAHoECAcQBg..i&docid=MgQjTbxXDoeimM&client=ubuntu&sa=X&ved=2ahUKEwjA19L6vLHfAhXH2LwKHVqZAAQQ9QEwAHoECAcQBg
+
 # disable pandas warning
 pd.options.mode.chained_assignment = None
 
@@ -139,7 +142,7 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 	"""
 	# create a fig that spans the whole screen
 	fig = plt.figure(figsize=(20,10))
-	fig.suptitle(",".join(names)+" "+title, fontsize='x-large', fontweight = 'bold')
+	fig.suptitle(", ".join(names)+" "+title, fontsize='x-large', fontweight = 'bold')
 	
 	# define dimensions of graph area
 	rect = 0.05,0.05,0.9,0.85
@@ -188,12 +191,13 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 
 	return dic
 
+# draw GPS Latency for all cameras
 def drawCamerasGPSLatency(data,dic):
 
 	# first draw GPS for the whole dataset
 	units = ["Sequence Number","GPS Latency {ms}"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphTimeSeries([data["latency"]], data['seq'], ["r"], ["-"], ["GPS Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+	dic1 = graphTimeSeries([data["latency"]], data['seq'], ["mediumvioletred"], ["-"], ["GPS Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -204,13 +208,15 @@ def drawCamerasGPSLatency(data,dic):
 		title = args.t
 		dic1 = graphTimeSeries([cam_data['latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" GPS Latency"], "Sequence", units, title, save_dir, dic1)
 
+	plt.close('all')
 	return dic1
 
+# draw PC Clock Latency for all Cameras
 def drawCamerasPCCLock_Latency(data,dic):
 	# first draw GPS for the whole dataset
 	units = ["Sequence Number","PC Clock Latency {ms}"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphTimeSeries([data["pc_latency"]], data['seq'], ["r"], ["-"], ["PC Clock Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+	dic1 = graphTimeSeries([data["pc_latency"]], data['seq'], ["mediumvioletred"], ["-"], ["PC Clock Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -221,6 +227,47 @@ def drawCamerasPCCLock_Latency(data,dic):
 		title = args.t
 		dic1 = graphTimeSeries([cam_data['pc_latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" PC Clock Latency"], "Sequence", units, title, save_dir, dic1)
 
+	plt.close('all')
+	return dic1
+
+# graph GPS Latency and PC Clock Latency series over the same graph
+def drawCameras_GPSandPCCLock_Combined(data,dic):
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","PC Clock Latency, GPS Latency {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	series = [data["latency"],data["pc_latency"]]
+	dic1 = graphTimeSeries(series, data['seq'], ["mediumvioletred", "k"], ["-","--"], ["GPS Latency","PC Clock Latency"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['id']), colors):
+		print(" - Camera "+str(cam_id)+" GPS and PC Clock Latency")
+		cam_data = data[ data['id'] == cam_id ]
+		units = ["Sequence Number","PC Clock Latency {ms}"]
+		series = [cam_data["latency"],cam_data["pc_latency"]]
+		dic1 = graphTimeSeries(series, cam_data['seq'], [col,"k"], ["-","--"], ["Camera "+str(cam_id)+" GPS Latency","Camera "+str(cam_id)+" PC Clock Latency" ], "Sequence", units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1
+
+# graph difference between PC Clock Latency and GPS Latency
+def drawGPS_PCClock_Difference(data,dic):
+
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","Difference {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["dif_latency"]], data['seq'], ["mediumvioletred"], ["-"], ["PC Clock Latency minus GPS Latency"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['id']), colors):
+		print(" - Camera "+str(cam_id)+" PC Clock Latency minus GPS Latency")
+		cam_data = data[ data['id'] == cam_id ]
+		#units = ["Sequence Number","D {ms}"]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['dif_latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" PC Clock Latency minus GPS Latency"], "Sequence", units, title, save_dir, dic1)
+
+	plt.close('all')
 	return dic1
 
 # draw a Latency Graph
@@ -431,7 +478,6 @@ def drawCombinedLatency_PCNetworkLatency_Graph(data,ax,stats,camnumber,col,data_
 
 	return data_dic
 
-
 # draw Difference a Latency Graph
 def drawDifferenceLatencyGraph(data,ax,stats,camnumber,col,data_dic):
 
@@ -450,7 +496,6 @@ def drawDifferenceLatencyGraph(data,ax,stats,camnumber,col,data_dic):
 	meanline = np.ones_like(data['seq'])*avg
 	ax.plot(data['seq'],meanline, color = 'c', linestyle = '--')
 	return data_dic
-
 
 # draw a Histogram
 def drawHistogram(data,ax,stats,camnumber, bins,col):
@@ -475,7 +520,7 @@ def drawGraphs(data_dic):
 	if(doplot):
 
 		#print cam1.tail(15)						
-
+		"""
 		print (" *************** DRAWING LATENCY 0 **********************")																																																																																	
 		fig0 = plt.figure(figsize=(20,10))
 		fig0.suptitle('Latency vs Sequence from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
@@ -529,8 +574,8 @@ def drawGraphs(data_dic):
 		fig24.suptitle('PC Latency vs Sequence from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
 		fig24ax1 = fig24.add_subplot(1,1,1)
 		data_dic = drawpcLatencyGraph(cam4,fig24ax1, cam4stats,4,'c', data_dic)	
-
-
+		"""
+		"""
 		plt.close('all')
 		print (" *************** DRAWING COMBINED LATENCY 0 **********************")																																																																																	
 		fig30 = plt.figure(figsize=(20,10))
@@ -585,7 +630,7 @@ def drawGraphs(data_dic):
 		fig44.suptitle('PC Clock Latency and GPS Latency Difference vs Sequence from file: '+file_name+" \n drop rate: {:.2f}".format(drop_rate) + "%")
 		fig44ax1 = fig44.add_subplot(1,1,1)
 		data_dic = drawDifferenceLatencyGraph(cam4,fig44ax1, cam4stats,4,'c', data_dic)
-
+		"""
 
 		plt.close('all')
 
@@ -683,11 +728,13 @@ def drawGraphs(data_dic):
 		plt.close('all')
 
 	if (save_fig):
+		"""
 		fig0.savefig(save_dir+file_name+"_latency_Camera0.jpg")
 		fig1.savefig(save_dir+file_name+"_latency_Camera1.jpg")
 		fig2.savefig(save_dir+file_name+"_latency_Camera2.jpg")
 		fig3.savefig(save_dir+file_name+"_latency_Camera3.jpg")
 		fig4.savefig(save_dir+file_name+"_latency_Camera4.jpg")
+		"""
 
 		fig5.savefig(save_dir+file_name+"_hist_Camera0.jpg")
 		fig6.savefig(save_dir+file_name+"_hist_Camera1.jpg")
@@ -695,11 +742,13 @@ def drawGraphs(data_dic):
 		fig8.savefig(save_dir+file_name+"_hist_Camera3.jpg")
 		fig9.savefig(save_dir+file_name+"_hist_Camera4.jpg")
 
+		"""
 		fig20.savefig(save_dir+file_name+"_pc_latency_Camera0.jpg")
 		fig21.savefig(save_dir+file_name+"_pc_latency_Camera1.jpg")
 		fig22.savefig(save_dir+file_name+"_pc_latency_Camera2.jpg")
 		fig23.savefig(save_dir+file_name+"_pc_latency_Camera3.jpg")
 		fig24.savefig(save_dir+file_name+"_pc_latency_Camera4.jpg")
+		"""
 
 		fig25.savefig(save_dir+file_name+"_pc_hist_Camera0.jpg")
 		fig26.savefig(save_dir+file_name+"_pc_hist_Camera1.jpg")
@@ -707,6 +756,7 @@ def drawGraphs(data_dic):
 		fig28.savefig(save_dir+file_name+"_pc_hist_Camera3.jpg")
 		fig29.savefig(save_dir+file_name+"_pc_hist_Camera4.jpg")
 
+		"""
 		fig30.savefig(save_dir+file_name+"_com_latency_Camera0.jpg")
 		fig31.savefig(save_dir+file_name+"_com_latency_Camera1.jpg")
 		fig32.savefig(save_dir+file_name+"_com_latency_Camera2.jpg")
@@ -718,6 +768,7 @@ def drawGraphs(data_dic):
 		fig42.savefig(save_dir+file_name+"_dif_latency_Camera2.jpg")
 		fig43.savefig(save_dir+file_name+"_dif_latency_Camera3.jpg")
 		fig44.savefig(save_dir+file_name+"_dif_latency_Camera4.jpg")
+		"""
 
 		fig50.savefig(save_dir+file_name+"_raw_latency_all.jpg")
 		fig60.savefig(save_dir+file_name+"_satellite_all.jpg")
@@ -726,7 +777,7 @@ def drawGraphs(data_dic):
 		fig63.savefig(save_dir+file_name+"_pclml_all.jpg")
 
 
-
+		"""
 		data_dic["latency_cam0"] = file_name+"_latency_Camera0.jpg"
 		data_dic["latency_cam1"] = file_name+"_latency_Camera1.jpg"
 		data_dic["latency_cam2"] = file_name+"_latency_Camera2.jpg"
@@ -750,7 +801,8 @@ def drawGraphs(data_dic):
 		data_dic["dif_latency_cam2"] = file_name+"_dif_latency_Camera2.jpg"
 		data_dic["dif_latency_cam3"] = file_name+"_dif_latency_Camera3.jpg"
 		data_dic["dif_latency_cam4"] = file_name+"_dif_latency_Camera4.jpg"
-
+		"""
+		
 		data_dic["raw_latency_all"] = file_name+"_raw_latency_all.jpg"
 		data_dic["satellite_all"] = file_name+"_satellite_all.jpg"
 		data_dic["pc_network_latency"] = file_name+"_pc_network_latency_all.jpg"
@@ -1257,6 +1309,10 @@ if __name__ == '__main__':
 	data_dic = drawCamerasGPSLatency(clog, data_dic)
 	# draw PC Clock Latency
 	data_dic = drawCamerasPCCLock_Latency(clog, data_dic)
+	# draw GPS Latency and PC Clock Latency
+	data_dic = drawCameras_GPSandPCCLock_Combined(clog,data_dic)
+	# draw GPS Latency and PC Clock Latency Graph
+	data_dic = drawGPS_PCClock_Difference(clog,data_dic)
 	print(data_dic)
 
 
