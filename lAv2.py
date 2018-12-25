@@ -63,14 +63,14 @@ def getDropRate(a):
 	n = len(c)
 	#print ("n: "+str(n))
 	# get number of "drop frame : old frame"
-	d = len(a[ a['id'] == 'drop frame : old frame' ])
+	d = 0 #len(a[ a['stream_id'] == 'drop frame : old frame' ])
 	#print ("d: "+str(d))
 	# get m = no of cameras 'k' * (max(seq) - min(seq))
-	k = len(c.groupby('id'))
+	k = len(c.groupby('stream_id'))
 	#print ("k: "+str(k))
-	c['seq'] = c['seq'].str.extract('(\d+)', expand=True).astype(int)
-	minseq = min(c['seq'])
-	maxseq = max(c['seq'])
+	#c['image_sequence_number'] = c['image_sequence_number'].str.extract('(\d+)', expand=True).astype(int)
+	minseq = min(c['image_sequence_number'])
+	maxseq = max(c['image_sequence_number'])
 	#print ("min seq: "+str(minseq)+" max seq: "+str(maxseq))
 	m = k*(maxseq-minseq+1)
 	#print("m: "+str(m))
@@ -124,10 +124,131 @@ def createCommandLineParser():
 	parser1.add_argument('-x', help='LOG File format: 1: oldest , 2: new  3:newest ', default="old")
 	parser1.add_argument('-y', help='Number of camera for which latency map will be draw, 5 = all cameras', default="5")
 	parser1.add_argument('-q', help='Colormap to be used [viridis_r, magma_r, inferno_r]', default="inferno_r")
-
+	parser1.add_argument('-o', help='Bin number for Encoding Latency Histogram', default="5")
 	#parser.add_argument('-w', help='Path to rotated image', default='r1.jpg')
 	args = parser1.parse_args()
 	return args
+
+# draw Histogram
+def graphHistogram(data_series,bins,colors,names,units,title,save_directory,dic):
+	# create a fig that spans the whole screen
+	fig = plt.figure(figsize=(20,10))
+	fig.suptitle(", ".join(names)+" "+title, fontsize='x-large', fontweight = 'bold')
+	
+	# define dimensions of graph area
+	rect = 0.05,0.05,0.9,0.85
+	ax = fig.add_axes(rect)
+	# iterate over all data series
+	for (data, col, name) in zip(data_series, colors, names):
+		min_val = min(data)
+		max_val = max(data)
+		bins = np.arange(min_val,max_val,bins)	
+		ax.hist(data, bins, [min_val,max_val], color = col, label = name)
+
+	ax.set_title(", ".join(names)+" Histogram")
+	ax.set_xlabel(units[0])
+	ax.set_ylabel(units[1])
+	ax.set_xticks(bins)
+	ax.legend(loc='upper right', shadow=True, fontsize='x-large')
+
+	# compute name of image as name of all images together... replace blank spaces with underscore
+	img_name = "_".join(names).replace(" ","_")
+	fig.savefig(save_directory+img_name+".jpg") #dpi = 200
+	dic[img_name] = img_name+".jpg"
+
+	return dic
+
+# draw Histogram for Encoding Latency
+def drawEncodingLatencyHistogram(data,dic,bins):
+
+	# first draw GPS for the whole dataset
+	units = ["Encoding Latency {ms}", "Count"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphHistogram([data["encoding_latency"]], bins, ["mediumvioletred"], ["Encoding Latency All Cameras Histogram"], units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Encoding Latency Histogram")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphHistogram([cam_data['encoding_latency']], bins, [col], ["Camera "+str(cam_id)+" Encoding Latency Histogram"], units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
+def drawNetworkLatencyHistogram(data,dic,bins):
+
+	# first draw GPS for the whole dataset
+	units = ["Network Latency {ms}", "Count"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphHistogram([data["network_latency"]], bins, ["mediumvioletred"], ["Network Latency All Cameras Histogram"], units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Network Latency Histogram")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphHistogram([cam_data['network_latency']], bins, [col], ["Camera "+str(cam_id)+" Network Latency Histogram"], units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
+def drawTotalLatencyHistogram(data,dic,bins):
+
+	# first draw GPS for the whole dataset
+	units = ["Total Latency {ms}", "Count"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphHistogram([data["total_latency"]], bins, ["mediumvioletred"], ["Total Latency All Cameras Histogram"], units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Total Latency Histogram")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphHistogram([cam_data['total_latency']], bins, [col], ["Camera "+str(cam_id)+" Total Latency Histogram"], units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
+def drawOffsetGPSStreamerHistogram(data,dic,bins):
+
+	# first draw GPS for the whole dataset
+	units = ["Offset GPS Streamer {ms}", "Count"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphHistogram([data["offset_gps_streamer"]], bins, ["mediumvioletred"], ["Offset GPS Streamer All Cameras Histogram"], units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Offset GPS Streamer Histogram")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphHistogram([cam_data['offset_gps_streamer']], bins, [col], ["Camera "+str(cam_id)+" Offset GPS Streamer Histogram"], units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1
+
+def drawOffsetGPSPlayerHistogram(data,dic,bins):
+
+	# first draw GPS for the whole dataset
+	units = ["Offset GPS Player {ms}", "Count"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphHistogram([data["offset_gps_player"]], bins, ["mediumvioletred"], ["Offset GPS Player All Cameras Histogram"], units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Offset GPS Player Histogram")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphHistogram([cam_data['offset_gps_player']], bins, [col], ["Camera "+str(cam_id)+" Offset GPS Player Histogram"], units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1
+
 
 # a general function to draw graphs
 # this is a main bottleneck when making updates, since for every new graph required,
@@ -142,7 +263,7 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 	"""
 	# create a fig that spans the whole screen
 	fig = plt.figure(figsize=(20,10))
-	fig.suptitle(", ".join(names)+" "+title, fontsize='x-large', fontweight = 'bold')
+	fig.suptitle(", ".join(names)+" "+title + "\n drop rate: {:.2f}".format(drop_rate) + "%", fontsize='x-large', fontweight = 'bold')
 	
 	# define dimensions of graph area
 	rect = 0.05,0.05,0.9,0.85
@@ -191,44 +312,117 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 
 	return dic
 
-# draw GPS Latency for all cameras
-def drawCamerasGPSLatency(data,dic):
+# draw Enconding Latency for all cameras
+def drawEncodingLatency(data,dic):
+	# create a virtual sequence since in the original dataset this number repeats for each camera 
+	init = data.at[data.index.values[0],'image_sequence_number']
+	seq = np.arange(0,len(data['image_sequence_number']),1)+init
 
 	# first draw GPS for the whole dataset
-	units = ["Sequence Number","GPS Latency {ms}"]
+	units = ["Sequence Number","Encoding Latency {ms}"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphTimeSeries([data["latency"]], data['seq'], ["mediumvioletred"], ["-"], ["GPS Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+	dic1 = graphTimeSeries([data["encoding_latency"]], seq, ["mediumvioletred"], ["-"], ["Encoding Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
-	for (cam_id,col) in zip(np.unique(data['id']), colors):
-		print(" - Camera "+str(cam_id)+" GPS Latency Graph")
-		cam_data = data[ data['id'] == cam_id ]
-		units = ["Sequence Number","GPS Latency {ms}"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Encoding Latency Graph")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		units = ["Sequence Number","Encoding Latency {ms}"]
 		title = args.t
-		dic1 = graphTimeSeries([cam_data['latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" GPS Latency"], "Sequence", units, title, save_dir, dic1)
+		dic1 = graphTimeSeries([cam_data['encoding_latency']], cam_data['image_sequence_number'], [col], ["-"], ["Camera "+str(cam_id)+" Encoding Latency"], "Sequence", units, title, save_dir, dic1)
 
 	plt.close('all')
 	return dic1
 
-# draw PC Clock Latency for all Cameras
-def drawCamerasPCCLock_Latency(data,dic):
+# draw Network Latency for all Cameras
+def drawNetworkLatency(data,dic):
+	# create a virtual sequence since in the original dataset this number repeats for each camera 
+	init = data.at[data.index.values[0],'image_sequence_number']
+	seq = np.arange(0,len(data['image_sequence_number']),1)+init
+
 	# first draw GPS for the whole dataset
-	units = ["Sequence Number","PC Clock Latency {ms}"]
+	units = ["Sequence Number","Network Latency {ms}"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphTimeSeries([data["pc_latency"]], data['seq'], ["mediumvioletred"], ["-"], ["PC Clock Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+	dic1 = graphTimeSeries([data["network_latency"]], seq, ["mediumvioletred"], ["-"], ["Network Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
-	for (cam_id,col) in zip(np.unique(data['id']), colors):
-		print(" - Camera "+str(cam_id)+" PC Clock Latency Graph")
-		cam_data = data[ data['id'] == cam_id ]
-		units = ["Sequence Number","PC Clock Latency {ms}"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Network Latency Graph")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		units = ["Sequence Number","Network Latency {ms}"]
 		title = args.t
-		dic1 = graphTimeSeries([cam_data['pc_latency']], cam_data['seq'], [col], ["-"], ["Camera "+str(cam_id)+" PC Clock Latency"], "Sequence", units, title, save_dir, dic1)
+		dic1 = graphTimeSeries([cam_data['network_latency']], cam_data['image_sequence_number'], [col], ["-"], ["Camera "+str(cam_id)+" Network Latency"], "Sequence", units, title, save_dir, dic1)
 
 	plt.close('all')
 	return dic1
+
+# draw Total Latency for all Cameras
+def drawTotalLatency(data,dic):
+	# create a virtual sequence since in the original dataset this number repeats for each camera 
+	init = data.at[data.index.values[0],'image_sequence_number']
+	seq = np.arange(0,len(data['image_sequence_number']),1)+init
+
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","Total Latency {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["total_latency"]], seq, ["mediumvioletred"], ["-"], ["Total Latency All Cameras"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Total Latency Graph")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		units = ["Sequence Number","Total Latency {ms}"]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['total_latency']], cam_data['image_sequence_number'], [col], ["-"], ["Camera "+str(cam_id)+" Total Latency"], "Sequence", units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
+def drawOffsetGPSStreamer(data,dic):
+	# create a virtual sequence since in the original dataset this number repeats for each camera 
+	init = data.at[data.index.values[0],'image_sequence_number']
+	seq = np.arange(0,len(data['image_sequence_number']),1)+init
+
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","Offset GPS Streamer {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["offset_gps_streamer"]], seq, ["mediumvioletred"], ["-"], ["Offset GPS Streamer All Cameras"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Offset GPS Streamer Graph")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['offset_gps_streamer']], cam_data['image_sequence_number'], [col], ["-"], ["Camera "+str(cam_id)+" Offset GPS Streamer"], "Sequence", units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
+def	drawOffsetGPSPlayer(data,dic):
+	# create a virtual sequence since in the original dataset this number repeats for each camera 
+	init = data.at[data.index.values[0],'image_sequence_number']
+	seq = np.arange(0,len(data['image_sequence_number']),1)+init
+
+	# first draw GPS for the whole dataset
+	units = ["Sequence Number","Offset GPS Player {ms}"]
+	title = args.t  # Set the title of the graph as the name of the experiment
+	dic1 = graphTimeSeries([data["offset_gps_player"]], seq, ["mediumvioletred"], ["-"], ["Offset GPS Player All Cameras"], "Sequence", units, title, save_dir, dic)	
+
+	# now draw for all cameras
+	colors = ["r", "g", "b", "m", "c", "sandybrown"]
+	for (cam_id,col) in zip(np.unique(data['stream_id']), colors):
+		print(" - Camera "+str(cam_id)+" Offset GPS Player Graph")
+		cam_data = data[ data['stream_id'] == cam_id ]
+		title = args.t
+		dic1 = graphTimeSeries([cam_data['offset_gps_player']], cam_data['image_sequence_number'], [col], ["-"], ["Camera "+str(cam_id)+" Offset GPS Player"], "Sequence", units, title, save_dir, dic1)
+
+	plt.close('all')
+	return dic1	
+
 
 # graph GPS Latency and PC Clock Latency series over the same graph
 def drawCameras_GPSandPCCLock_Combined(data,dic):
@@ -505,6 +699,9 @@ def drawHistogram(data,ax,stats,camnumber, bins,col):
 	ax.set_xlabel("Latency {ms}")
 	ax.set_ylabel("Count")
 	ax.set_xticks(bins)
+
+
+
 
 # draw a Histogram
 def drawpcHistogram(data,ax,stats,camnumber, bins,col):
@@ -940,6 +1137,27 @@ def getGPXDataFrame(gpxfile, file_type):
 		for (lat,lon,time, ele) in zip(gpxfile['lat'],gpxfile['lon'],gpxfile['time'],gpxfile['ele']):
 			#print (lat,lon,time,ele)
 			gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latitude =float(lat), longitude =float(lon), elevation=ele, time=time))
+	if(file_type == "4"):
+		# this DataFrame already has latitude and longitude
+		# only need to add velocity
+		gpxfile['elevation'] = 0.0
+
+
+		#gpxfile = gpxfile.groub
+		
+		# Creat a GPX File
+		gpx_data = gpxpy.gpx.GPX()
+		# Create first track in our GPX:
+		gpx_track = gpxpy.gpx.GPXTrack()
+		gpx_data.tracks.append(gpx_track)
+
+		# Create first segment in our GPX track:
+		gpx_segment = gpxpy.gpx.GPXTrackSegment()
+		gpx_track.segments.append(gpx_segment)
+
+		for (lat,lon,time, ele) in zip(gpxfile['latitude'],gpxfile['longitude'],gpxfile['time'],gpxfile['elevation']):
+			#print (lat,lon,time,ele)
+			gpx_segment.points.append(gpxpy.gpx.GPXTrackPoint(latitude =float(lat), longitude =float(lon), elevation=ele, time=time))
 
 
 	#print(gpx_data.tracks[0].segments[0].points[0].latitude)
@@ -961,7 +1179,7 @@ def getGPXDataFrame(gpxfile, file_type):
 				ele.append(point.elevation)
 				if(file_type == "1" or file_type == "2"):
 					time.append(point.time+timedelta(hours = 9))
-				if(file_type == "3"):
+				if(file_type == "3" or file_type == "4"):
 					time.append(point.time)
 				# estimate traveling speed
 				if(k > 0):
@@ -977,9 +1195,10 @@ def getGPXDataFrame(gpxfile, file_type):
 	points = pd.DataFrame(columns)
 	# convert to km/h
 	points['speed'] = points['speed']*3.6
-	print(points.head(10))
+	#print(points.head(10))
+	# Fill data points with np.nan
 	points['speed'] = points['speed'].fillna(method="bfill")
-	print(points.head(10))
+	#print(points.head(10))
 
 	return points
 
@@ -1091,19 +1310,21 @@ def alignGPSandLatency(latency_data, gps_data,option):
 		gps_with_latency['min_pc_latency'] = latency_data['pc_latency']
 
 	if(option == 1):
-		gps_with_latency['avg_latency'] = latency_data['latency']
-		gps_with_latency['avg_pc_latency'] = latency_data['pc_latency']
+		gps_with_latency['encoding_latency'] = latency_data['encoding_latency']
+		gps_with_latency['network_latency'] = latency_data['network_latency']
+		gps_with_latency['total_latency'] = latency_data['total_latency']
+
 	if(option == 2):
 		gps_with_latency['max_latency'] = latency_data['latency']
 		gps_with_latency['max_pc_latency'] = latency_data['pc_latency']
 
 
 	# add the rest of the columns
-	gps_with_latency['sat'] = latency_data['sat']
-	gps_with_latency['seq'] = latency_data['seq']
-	gps_with_latency['dif_latency'] = latency_data['dif_latency']
-	gps_with_latency['pc_network_latency'] = latency_data['pc_network_latency']
-	gps_with_latency['id'] = latency_data['id']
+	gps_with_latency['number_of_satellites'] = latency_data['number_of_satellites']
+	gps_with_latency['image_sequence_number'] = latency_data['image_sequence_number']
+	#gps_with_latency['dif_latency'] = latency_data['dif_latency']
+	#gps_with_latency['pc_network_latency'] = latency_data['pc_network_latency']
+	gps_with_latency['stream_id'] = latency_data['stream_id']
 	return gps_with_latency
 
 # get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
@@ -1245,27 +1466,35 @@ if __name__ == '__main__':
 	# use this cmap
 	name = args.q
 
+	print (" - Importing Data...")
+
 	if(args.x == "4"):
+		print (" - Received format 4")
 		log_raw = pd.read_csv(file_path, sep = ",", header = 0)
+		a = len(log_raw['longitude'])
+		# drop rows in which longitude is wrong
+		log_raw = log_raw[ log_raw['longitude'] != 0.0]
+		b = len(log_raw['longitude'])
+		print("- ...dropped {} rows with lat,lon=0.0".format(a-b))
 	else:
 		# import log file
 		log_raw = pd.read_csv(file_path, sep = ",", header = None)
 		#import file depending on format version
 		if args.x == "2":  # new format
+			print (" - Received format 2")
 			log_raw.columns = ["id","seq","send_time","recv_time", "size"]    #new format
 		if args.x == "1":   # old format
+			print (" - Received format 1")
 			log_raw.columns = ["id","seq","size", "latency","time"]				# old format
 		if args.x == "3":   # newest format 
+			print (" - Received format 3")
 			log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]				# newest format 20181214
 		#if args.x == "4":
 		#	log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]	
 
-	print ("---------- IMPORT RAW LOG DATA --------------")
-	#print log_raw.head(10)
-	#print ("Raw Log shape: "+str(log_raw.shape))
-	#print log_raw.dtypes
 
-	print("\n---------- CLEAN AND PARSE DATA--------------")
+
+	print("\n - Cleaning")
 	clog = cleanData(log_raw)
 	if args.x == "2":
 		clog = convertData(clog, [int,int,int,int,int])                    # new format
@@ -1274,30 +1503,44 @@ if __name__ == '__main__':
 	if (args.x == "3"):
 		clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,float,float,int])     #newest format
 	if (args.x == "4"):
-		clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,float,float,int,int])
-		#print("LATITUDE IMPORTADA")
-		#print(clog['lat'].head())
-
+		print("   and Parsing...")
+		#print(clog.dtypes)
+		#clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,float,float,int,int])
+		print("   done!")
 		# copy necessary data to make gps file later
 		gps_data_s = pd.DataFrame()
-		gps_data_s['lon'] = clog['longitude']
-		gps_data_s['lat'] = clog['latitude']
+		gps_data_s['longitude'] = clog['longitude']
+		gps_data_s['latitude'] = clog['latitude']
 		#gps_data['send_UTC'] = log_raw['send_UTC']
 
 		#  drop lon, lat columns that will be imported afterwards
-		log_raw = log_raw.drop(columns=['lon','lat'])
+		clog = clog.drop(columns=['longitude','latitude'])
 
-	#print clog.head()
-
+	
+	print("\n - Calculating various latencies...")
 	# Calculate Latency
 	if 'latency' not in clog.columns:
 		if args.x == "2":
 			clog['latency'] = clog['recv_time'] - clog["send_time"]
 		if args.x == "3":
 			clog['latency'] = clog['recv_UTC'] - clog["send_UTC"]
+		if args.x == "4":
+			clog['encoding_latency'] = clog['timestamp_gps_send'] - clog['timestamp_gps_grab']
+			print(" - Encoding Latency done!")
+			clog['network_latency'] = clog['timestamp_gps_recv'] - clog['timestamp_gps_send']
+			print(" - Network Latency done!")
+			clog['total_latency'] = clog['timestamp_gps_recv']-clog['timestamp_gps_grab']
+			print(" - Total Latency done!")
 
+			#offset0 = clog.at[0,'send_UTC'] - clog.at[0,'send_time']
+			#offset1 = clog.at[0,'recv_UTC'] - clog.at[0,'recv_time']
 
+			#clog['pc_latency'] = map(lambda x,y: x-y-offset0+offset1, clog['recv_time'], clog['send_time'])
+			#clog['raw_UTC_latency'] = clog['send_raw_UTC']- clog['recv_raw_UTC']
+			#clog['dif_latency'] = clog['pc_latency'] - clog['latency']
+			#clog['pc_network_latency'] = clog['recv_UTC'] - clog['send_UTC'] + clog['send_time'] - clog["local_send_time"]			
 
+	#print clog.head(10)
 
 
 	# c = offset UTC (+0900) in milliseconds
@@ -1307,119 +1550,125 @@ if __name__ == '__main__':
 			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['send_time'])
 		if args.x == "3":
 			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['send_UTC'])
+		if args.x == "4":
+			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['timestamp_gps_grab'])
 			#print(clog.head(10))
-			gps_data_s['time'] = clog['time'].copy()
+		
+	gps_data_s['time'] = clog['time'].copy()
 
-			# following will group data by index. This is because for a new data format
-			# there can be multiple gps locations for the same timestamp, which leads to
-			# repeated elements in the index. So we take the location to be the average
-			# of the gps locations for each timestamp
-			gps_data_s = gps_data_s.groupby('time').mean().sort_index()
-			gps_data_s = gps_data_s.reset_index()
-			#print(gps_data_s.head(10))
+	# following will group data by index. This is because for a new data format
+	# there can be multiple gps locations for the same timestamp, which leads to
+	# repeated elements in the index. So we take the location to be the average
+	# of the gps locations for each timestamp
+	gps_data_s = gps_data_s.groupby('time').mean().sort_index()
+	gps_data_s = gps_data_s.reset_index()
+	#print(gps_data_s.head(10))
 
 
 	# ------------------------------- CAREFUL
 	#seqthreshold = 100000
 	#clog = clog[ clog['latency'] < seqthreshold] 
 
-	# Calculate offset1
-	#print(clog.at[0,'send_UTC'])
-	#print(clog.at[0,'send_time'])
-	#print(clog.at[0,'recv_UTC'])
-	#print(clog.at[0,'recv_time'])
-	offset0 = clog.at[0,'send_UTC'] - clog.at[0,'send_time']
-	offset1 = clog.at[0,'recv_UTC'] - clog.at[0,'recv_time']
-	#print('Offset 0 {}'.format(offset0))
-	#print('Offset 1 {}'.format(offset1))
-	clog['pc_latency'] = map(lambda x,y: x-y-offset0+offset1, clog['recv_time'], clog['send_time'])
-	clog['raw_UTC_latency'] = clog['send_raw_UTC']- clog['recv_raw_UTC']
-	clog['dif_latency'] = clog['pc_latency'] - clog['latency']
-	clog['pc_network_latency'] = clog['recv_UTC'] - clog['send_UTC'] + clog['send_time'] - clog["local_send_time"]
-	#print(clog.head())
-	#print("Clean log:\n {}".format(clog.head(10)))
-	#print(clog.dtypes)
-	#print("GPS Data log:\n {}".format(gps_data_s.head(10)))
 
 
-	init = clog.at[clog.index.values[0],'seq']
-	clog['seq'] = np.arange(0,len(clog['seq']),1)+init
-	clogstats = clog.describe()
 
-	# draw GPS Latency
-	data_dic = drawCamerasGPSLatency(clog, data_dic)
-	# draw PC Clock Latency
-	data_dic = drawCamerasPCCLock_Latency(clog, data_dic)
-	# draw GPS Latency and PC Clock Latency
-	data_dic = drawCameras_GPSandPCCLock_Combined(clog,data_dic)
-	# draw GPS Latency and PC Clock Latency Graph
-	data_dic = drawGPS_PCClock_Difference(clog,data_dic)
-	#print(data_dic)
 
 
 	#print(clog.head())
 
 
-	print("\n---------- GET CAMARA 0 DATA --------------")
-	cam0 = clog[ clog['id'] == 0 ]
+	print(" - Separate Cameras by ID")
+	cam0 = clog[ clog['stream_id'] == 0 ]
 	#print("Camera 0 log:\n {}".format(cam0.head()))
 	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
 	# artifical sequence number
-	init = cam0.at[cam0.index.values[0],'seq']
-	cam0['seq'] = np.arange(0,len(cam0['seq']),1)+init
+	#init = cam0.at[cam0.index.values[0],'seq']
+	#cam0['seq'] = np.arange(0,len(cam0['seq']),1)+init
 	cam0stats = cam0.describe()
 
-	print("\n---------- GET CAMARA 1 DATA --------------")
-	cam1 = clog[ clog['id'] == 1 ]
+	#print("---------- GET CAMARA 1 DATA --------------")
+	cam1 = clog[ clog['stream_id'] == 1 ]
 	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
 	# artifical sequence number that is as close as possible to the original
-	init = cam1.at[cam1.index.values[0],'seq']
-	cam1['seq'] = np.arange(0,len(cam1['seq']),1)+init
+	#init = cam1.at[cam1.index.values[0],'seq']
+	#cam1['seq'] = np.arange(0,len(cam1['seq']),1)+init
 	cam1stats = cam1.describe()
 
-	print("\n---------- GET CAMARA 2 DATA --------------")
-	cam2 = clog[ clog['id'] == 2 ]
+	#print("---------- GET CAMARA 2 DATA --------------")
+	cam2 = clog[ clog['stream_id'] == 2 ]
 	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
 	# artifical sequence number that is as close as possible to the original
-	init = cam2.at[cam2.index.values[0],'seq']
-	cam2['seq'] = np.arange(0,len(cam2['seq']),1)+init
+	#init = cam2.at[cam2.index.values[0],'seq']
+	#cam2['seq'] = np.arange(0,len(cam2['seq']),1)+init
 	#print ("Camera 2 log:\n {}".format(cam2.head()))
 	cam2stats = cam2.describe()
 
-	print("\n---------- GET CAMARA 3 DATA --------------")
-	cam3 = clog[ clog['id'] == 3 ]
+	#print("---------- GET CAMARA 3 DATA --------------")
+	cam3 = clog[ clog['stream_id'] == 3 ]
 	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
 	# artifical sequence number that is as close as possible to the original
-	init = cam3.at[cam3.index.values[0],'seq']
-	cam3['seq'] = np.arange(0,len(cam3['seq']),1)+init
+	#init = cam3.at[cam3.index.values[0],'seq']
+	#cam3['seq'] = np.arange(0,len(cam3['seq']),1)+init
 	#print ("Camera 3 log:\n {}".format(cam3.head()))
 	cam3stats = cam3.describe()
 
-	print("\n---------- GET CAMARA 4 DATA --------------")
-	cam4 = clog[ clog['id'] == 4 ]
+	#print("---------- GET CAMARA 4 DATA --------------")
+	cam4 = clog[ clog['stream_id'] == 4 ]
 	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
 	# artifical sequence number that is as close as possible to the original
-	init = cam4.at[cam4.index.values[0],'seq']
-	cam4['seq'] = np.arange(0,len(cam4['seq']),1)+init
+	#init = cam4.at[cam4.index.values[0],'seq']
+	#cam4['seq'] = np.arange(0,len(cam4['seq']),1)+init
 	#print ("Camera 3 log:\n {}".format(cam3.head()))
 	cam4stats = cam4.describe()
 
-
-
+	#print("---------- GET CAMARA 5 DATA --------------")
+	cam5 = clog[ clog['stream_id'] == 5 ]
+	#correct sequence number if it was wrong, WARNING this modifies original data and creates an
+	# artifical sequence number that is as close as possible to the original
+	#init = cam5.at[cam4.index.values[0],'seq']
+	#cam4['seq'] = np.arange(0,len(cam4['seq']),1)+init
+	#print ("Camera 3 log:\n {}".format(cam3.head()))
+	cam5stats = cam5.describe()
 
 
 	# Calculate drop rate
 	drop_rate = getDropRate(log_raw)
 
-	# Graph and save images
-	save_fig = 1 	#always set to 1 so report generatino works
-	doplot = 1   #always set to 1 so report generatino works
-	dohist= 1    # always set to 1 so report generation works
-	data_dic = drawGraphs(data_dic)
+	# draw Encoding Latency
+	data_dic = drawEncodingLatency(clog, data_dic)
+	# draw Network Latency
+	data_dic = drawNetworkLatency(clog, data_dic)
+	# draw Total Latency
+	data_dic = drawTotalLatency(clog,data_dic)
+	# draw Stream GPS Offset
+	data_dic = drawOffsetGPSStreamer(clog,data_dic)
+	# draw Player GPS Offset
+	data_dic = drawOffsetGPSPlayer(clog,data_dic)
 
-	#plt.show()
 
-	plt.close('all')
+	# draw Encoding Latency Histogram
+	data_dic = drawEncodingLatencyHistogram(clog, data_dic, int(args.o))
+	# draw Encoding Latency Histogram
+	data_dic = drawNetworkLatencyHistogram(clog, data_dic, int(args.b))
+	# draw Encoding Latency Histogram
+	data_dic = drawTotalLatencyHistogram(clog, data_dic, int(args.b))
+	# draw Offset GPS Streamer Histogram
+	data_dic = drawOffsetGPSStreamerHistogram(clog, data_dic, 2)
+	# draw Offset GPS Player Histogram
+	data_dic = drawOffsetGPSPlayerHistogram(clog,data_dic,1)
+	#print(data_dic)
+	print(" - Number of Satellites Histogram")
+	unit = ['Number of Satellite','Count']
+	data_dic = graphHistogram([clog['number_of_satellites']],1,['r'],['Number of Satellites Histogram'],unit,args.t,save_dir,data_dic)
+	#print(data_dic)
+
+	# This reconstruction of the sequence MUST be made after all cameras' data has been separated
+	init = clog.at[clog.index.values[0],'image_sequence_number']
+	clog['image_sequence_number'] = np.arange(0,len(clog['image_sequence_number']),1)+init
+	clogstats = clog.describe()
+
+	unit= ["Sequence", " Number of Satellites"]
+	data_dic = graphTimeSeries([clog["number_of_satellites"]], clog["image_sequence_number"], ['r'], ['-'], ['Number of Satellites'], "Sequence", unit, args.t, save_dir, data_dic)
 
 
 	# import gpx file of the lap done
@@ -1430,7 +1679,7 @@ if __name__ == '__main__':
 	if(args.x == "1" or args.x=="2"):
 		gpx_file = open(args.g, 'r')
 		track_datapoints = getGPXDataFrame(gpx_file,args.x)
-	if(args.x == "3"):
+	if(args.x == "3" or args.x == "4"):
 		track_datapoints = getGPXDataFrame(gps_data_s,args.x)
 	#print (track_datapoints.head())
 
@@ -1456,27 +1705,31 @@ if __name__ == '__main__':
 	gps_lat_cam2 = alignGPSandLatency(cam2, track_datapoints, opt)
 	gps_lat_cam3 = alignGPSandLatency(cam3, track_datapoints, opt)
 	gps_lat_cam4 = alignGPSandLatency(cam4, track_datapoints, opt)
+	gps_lat_cam5 = alignGPSandLatency(cam5, track_datapoints, opt)
 
 
 
-
-	print("GPS Latency All Cameras log:\n {}".format(gps_lat_all.head(10)))
-	print("GPS Latency  Camera0 log:\n {}".format(gps_lat_cam0.head(10)))
-	print("GPS Latency  Camera1 log:\n {}".format(gps_lat_cam1.head(10)))
-	print("GPS Latency  Camera2 log:\n {}".format(gps_lat_cam2.head(10)))
-	print("GPS Latency  Camera3 log:\n {}".format(gps_lat_cam3.head(10)))
-	print("GPS Latency  Camera4 log:\n {}".format(gps_lat_cam4.head(10)))
+	#print("GPS Latency All Cameras log:\n {}".format(gps_lat_all.head(10)))
+	#print("GPS Latency  Camera0 log:\n {}".format(gps_lat_cam0.head(10)))
+	#print("GPS Latency  Camera1 log:\n {}".format(gps_lat_cam1.head(10)))
+	#print("GPS Latency  Camera2 log:\n {}".format(gps_lat_cam2.head(10)))
+	#print("GPS Latency  Camera3 log:\n {}".format(gps_lat_cam3.head(10)))
+	#print("GPS Latency  Camera4 log:\n {}".format(gps_lat_cam4.head(10)))
 
 
 	if(opt == 0):
-		lat_col = 'min_latency'
-		pc_lat_col = 'min_pc_latency'
+		enc_lat_col = 'encoding_latency'
+		net_lat_col = 'network_latency'
+		tot_lat_col = 'total_latency'
+
 	if(opt == 1):
-		lat_col = 'avg_latency'
-		pc_lat_col = 'avg_pc_latency'
+		enc_lat_col = 'encoding_latency'
+		net_lat_col = 'network_latency'
+		tot_lat_col = 'total_latency'
 	if(opt == 2):
-		lat_col = 'max_latency'
-		pc_lat_col = 'max_pc_latency'
+		enc_lat_col = 'encoding_latency'
+		net_lat_col = 'network_latency'
+		tot_lat_col = 'total_latency'
 
 	# define graph parameters
 	color_map=plt.get_cmap(name)
@@ -1519,6 +1772,7 @@ if __name__ == '__main__':
 	# need this file for other calculations ... cannot be inside if()
 	buildings = gpd.read_file("maps/buildings/Buildings_University2.geojson")
 	# calculate display region
+	margin_epsg4326 = 0.005  # the number of degrees by which the search area will be extended
 	margin = 500.0
 	max_lat = max(track_datapoints['lat'])
 	min_lat = min(track_datapoints['lat'])
@@ -1652,14 +1906,14 @@ if __name__ == '__main__':
 	   	# 	ax.annotate(txt, (z[i], y[i]))
 
 	   	# now annotate sequece
-	   	map(lambda seq,x,y: track1.annotate("{:.0f}".format(seq),(x,y), fontsize= 'medium', fontweight = 'bold', rotation = 30),seq_labels['seq'],seq_labels['x_merc'],seq_labels['y_merc'])
+	   	map(lambda seq,x,y: track1.annotate("{:.0f}".format(seq),(x,y), fontsize= 'medium', fontweight = 'bold', rotation = 30),seq_labels['image_sequence_number'],seq_labels['x_merc'],seq_labels['y_merc'])
 
 		track1.legend(loc='upper left', shadow=True, fontsize='x-large')
 		#admin.plot(ax=map5ax1, color='white', edgecolor='black',alpha = 0.2)
 		buildings.plot(ax=track1, color = 'green', alpha = 0.5)
 		waterareas.plot(ax = track1, color = 'blue', alpha = 0.5)
 
-		track_fig.savefig(save_dir+file_name+"_annotated_track_image.jpg")
+		track_fig.savefig(save_dir+file_name+"_annotated_track_image.jpg", dpi = 200)
 		data_dic["track_image_path"]=file_name+"_annotated_track_image.jpg"
 		#mplleaflet.show()
 		#plt.show()
@@ -1683,16 +1937,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map5ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map5ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_all = gps_lat_all.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_all[lat_col])
+			gps_lat_all = gps_lat_all.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_all[enc_lat_col])
 			map5ax1.scatter(gps_lat_all['x_merc'], gps_lat_all['y_merc'], color = colores, s = s1, alpha = alpha)
 			map5ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
 			map5ax1.set_xlim(min_x,max_x)
 			map5ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map5ax2 = map5.add_axes(rect)
-			latency_max = max(gps_lat_all[lat_col])
-			latency_min = min(gps_lat_all[lat_col])
+			latency_max = max(gps_lat_all[enc_lat_col])
+			latency_min = min(gps_lat_all[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb1 = mpl.colorbar.ColorbarBase(map5ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1704,16 +1958,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map0ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map0ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_cam0[lat_col])
+			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_cam0[enc_lat_col])
 			map0ax1.scatter(gps_lat_cam0['x_merc'], gps_lat_cam0['y_merc'], color = colores, s = s1, alpha = alpha)
 			map0ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
 			map0ax1.set_xlim(min_x,max_x)
 			map0ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map0ax2 = map0.add_axes(rect)
-			latency_max = max(gps_lat_cam0[lat_col])
-			latency_min = min(gps_lat_cam0[lat_col])
+			latency_max = max(gps_lat_cam0[enc_lat_col])
+			latency_min = min(gps_lat_cam0[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb2 = mpl.colorbar.ColorbarBase(map0ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1725,16 +1979,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map1ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map1ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_cam1[lat_col])
+			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_cam1[enc_lat_col])
 			map1ax1.scatter(gps_lat_cam1['x_merc'], gps_lat_cam1['y_merc'], color = colores, s = s1, alpha = alpha)
 			map1ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s = s2)
 			map1ax1.set_xlim(min_x,max_x)
 			map1ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map1ax2 = map1.add_axes(rect)
-			latency_max = max(gps_lat_cam1[lat_col])
-			latency_min = min(gps_lat_cam1[lat_col])
+			latency_max = max(gps_lat_cam1[enc_lat_col])
+			latency_min = min(gps_lat_cam1[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb3 = mpl.colorbar.ColorbarBase(map1ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1747,16 +2001,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map2ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map2ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_cam2[lat_col])
+			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_cam2[enc_lat_col])
 			map2ax1.scatter(gps_lat_cam2['x_merc'], gps_lat_cam2['y_merc'], color = colores, s=s1, alpha = alpha)
 			map2ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
 			map2ax1.set_xlim(min_x,max_x)
 			map2ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map2ax2 = map2.add_axes(rect)
-			latency_max = max(gps_lat_cam2[lat_col])
-			latency_min = min(gps_lat_cam2[lat_col])
+			latency_max = max(gps_lat_cam2[enc_lat_col])
+			latency_min = min(gps_lat_cam2[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb4 = mpl.colorbar.ColorbarBase(map2ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1769,16 +2023,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map3ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map3ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_cam3[lat_col])
+			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_cam3[enc_lat_col])
 			map3ax1.scatter(gps_lat_cam3['x_merc'], gps_lat_cam3['y_merc'], color = colores, s = s1, alpha = alpha)
 			map3ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
 			map3ax1.set_xlim(min_x,max_x)
 			map3ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map3ax2 = map3.add_axes(rect)
-			latency_max = max(gps_lat_cam3[lat_col])
-			latency_min = min(gps_lat_cam3[lat_col])
+			latency_max = max(gps_lat_cam3[enc_lat_col])
+			latency_min = min(gps_lat_cam3[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb5 = mpl.colorbar.ColorbarBase(map3ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1790,16 +2044,16 @@ if __name__ == '__main__':
 			buildings.plot(ax=map4ax1, color = 'green', alpha = 0.5)
 			waterareas.plot(ax = map4ax1, color = 'blue', alpha = 0.5)
 			# Plot Latency Map
-			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col])
-			colores = getColorMap(gps_lat_cam4[lat_col])
+			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[enc_lat_col])
+			colores = getColorMap(gps_lat_cam4[enc_lat_col])
 			map4ax1.scatter(gps_lat_cam4['x_merc'], gps_lat_cam4['y_merc'], color = colores, s = s1, alpha = alpha)
 			map4ax1.scatter(antenna['x_merc'], antenna['y_merc'], color = 'blue', marker='^', s= s2)
 			map4ax1.set_xlim(min_x,max_x)
 			map4ax1.set_ylim(min_y,max_y)
 			#Plot color bar
 			map4ax2 = map4.add_axes(rect)
-			latency_max = max(gps_lat_cam4[lat_col])
-			latency_min = min(gps_lat_cam4[lat_col])
+			latency_max = max(gps_lat_cam4[enc_lat_col])
+			latency_min = min(gps_lat_cam4[enc_lat_col])
 			ticks = np.linspace(latency_min, latency_max, 10)
 			norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 			cb6 = mpl.colorbar.ColorbarBase(map4ax2, cmap=color_map, norm=norm, orientation='vertical')
@@ -1862,10 +2116,10 @@ if __name__ == '__main__':
 		#ana1.suptitle(" Data Analysis ")
 
 		ana1ax1 = ana1.add_subplot(1,1,1)
-		ana1ax1.set_title(" Latency {ms} and Speed {km/h} vs Time")
-		ana1ax1.plot(gps_lat_all.index, gps_lat_all[lat_col], color = 'b', label = 'latency vs time')
+		ana1ax1.set_title(" Total Latency {ms} and Speed {km/h} vs Time")
+		ana1ax1.plot(gps_lat_all.index, gps_lat_all[tot_lat_col], color = 'b', label = ' Total Latency')
 		ana1ax1.set_xlabel(" Time ")
-		ana1ax1.set_ylabel(" Latency {ms}", color = 'b')
+		ana1ax1.set_ylabel(" Total Latency {ms}", color = 'b')
 		ana1ax1.legend(loc='upper left', shadow=True, fontsize='x-large')
 		ana1ax1.tick_params(axis = 'y', labelcolor='b')
 		#ana1ax1.set_xlim(gps_lat_all.index[0],gps_lat_all.index[-1])
@@ -1876,13 +2130,13 @@ if __name__ == '__main__':
 		ana1ax1.xaxis.set_major_formatter(formatter)
 
 		ana1ax2 = ana1ax1.twinx() #ana0.add_subplot(1,1,1) #ana1ax1.twinx()
-		ana1ax2.plot(gps_lat_all.index, gps_lat_all['speed'], color = 'r', label = 'speed vs time')
+		ana1ax2.plot(gps_lat_all.index, gps_lat_all['speed'], color = 'r', label = 'Speed')
 		ana1ax2.set_ylabel('Speed {km/h}', color = 'r')
 		ana1ax2.tick_params(axis='y', labelcolor='r')
 		ana1ax2.legend(loc='upper right', shadow=True, fontsize='x-large')
 
 		#ana1.tight_layout()
-
+		plt.close('all')	
 		#  ------------- LATENCY VS SPEED GRAPH -----------------
 		print("\n---------- LATENCY VS SPEED GRAPH --------------")
 
@@ -1890,10 +2144,10 @@ if __name__ == '__main__':
 
 		ana2.suptitle(" Data Analysis ")
 		ana2ax1 = ana2.add_subplot(1,1,1)
-		ana2ax1.set_title(" Latency {ms} vs Speed {km/h}")
-		ana2ax1.scatter(gps_lat_all['speed'], gps_lat_all[lat_col], color = 'b', label = 'latency vs speed')
+		ana2ax1.set_title(" Total Latency {ms} vs Speed {km/h}")
+		ana2ax1.scatter(gps_lat_all['speed'], gps_lat_all[tot_lat_col], color = 'b', label = 'Total latency vs speed')
 		ana2ax1.set_xlabel(" Speed {km/h}")
-		ana2ax1.set_ylabel(" Latency {ms}")
+		ana2ax1.set_ylabel(" Total Latency {ms}")
 
 		# plot speed vs something graphs
 		h = 5  #km/h
@@ -1901,11 +2155,11 @@ if __name__ == '__main__':
 		dx = 0.5 #km/h
 		speed_max = max(gps_lat_all['speed'])
 		speed_min = min(gps_lat_all['speed'])
-		print("Speed min: {}, max: {}".format(speed_min,speed_max))
+		#print("Speed min: {}, max: {}".format(speed_min,speed_max))
 		speed_group = gps_lat_all.groupby(pd.cut(gps_lat_all['speed'], np.arange(speed_min,speed_max,h1))).mean()
 		speed_group['speed_mean'] = map(lambda x: x.mid, speed_group.index.values)
 		#print (speed_group.head(10))
-		#ana2ax1.scatter(speed_group['speed_mean'], speed_group[lat_col], color ='r', label = 'avg latency')
+		#ana2ax1.scatter(speed_group['speed_mean'], speed_group[enc_lat_col], color ='r', label = 'avg latency')
 
 		low_lim = speed_min
 		high_lim = low_lim + h1
@@ -1920,7 +2174,7 @@ if __name__ == '__main__':
 			# get center point of window
 			speed_centers.append((low_lim+high_lim)/2)
 			# get latency average inside window
-			latency_avg.append(lat_avg[lat_col].mean())
+			latency_avg.append(lat_avg[tot_lat_col].mean())
 			# move window by delta x
 			low_lim = low_lim+dx
 			high_lim = high_lim+dx
@@ -1928,14 +2182,14 @@ if __name__ == '__main__':
 		avg_lat = gps_lat_all.groupby('speed').mean()
 
 		# draw 
-		#ana2ax1.scatter(avg_lat.index, avg_lat[lat_col], color ='r', label = 'avg latency')
-		ana2ax1.scatter(speed_centers, latency_avg, color ='r', label = 'avg latency')
+		#ana2ax1.scatter(avg_lat.index, avg_lat[enc_lat_col], color ='r', label = 'avg latency')
+		ana2ax1.scatter(speed_centers, latency_avg, color ='r', label = 'Mean latency')
 		ana2ax1.legend(loc='upper right', shadow=True, fontsize='x-large')
-
+		plt.close('all')
 
 		#  ------------- LATENCY VS ANTENNA INSIDE RADIUS -----------------
 		print("\n---------- LATENCY VS ANTENNA INSIDE RADIUS --------------")
-		margin_epsg4326 = 0.005  # the number of degrees by which the search area will be extended
+		
 
 
 		"""
@@ -1957,21 +2211,20 @@ if __name__ == '__main__':
 		r_names = ["r4", "r3", "r2", "r1", "r0"]
 		for (rname, r) in zip(r_names,r_search):
 			#data_dic['r']=r
-			test = gps_lat_all[0:50]
 			gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon'])
 
 			ana3 = plt.figure(figsize=(20,10))
 			ana3ax1 = ana3.add_subplot(1,1,1)
-			ana3ax1.set_title(" Latency {ms} vs Antennas in radius of "+str(r)+" m")
-			ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[lat_col], color = 'b')
+			ana3ax1.set_title(" Total Latency {ms} vs Antennas in radius of "+str(r)+" m")
+			ana3ax1.scatter(gps_lat_all['antennas'], gps_lat_all[tot_lat_col], color = 'b')
 			ana3ax1.set_xlabel(" Number of Antennas {}")
-			ana3ax1.set_ylabel(" Latency {ms}")
+			ana3ax1.set_ylabel(" Total Latency {ms}")
 			#ana3ax1.set_xlim(-1,)
-			ana3.savefig(save_dir+file_name+"_latency_antenna_in_radius_"+str(r)+".jpg")
+			ana3.savefig(save_dir+file_name+"_total_latency_antenna_in_radius_"+str(r)+".jpg")
 
-			data_dic["latency_antenna_in_radius_"+rname] = file_name+"_latency_antenna_in_radius_"+str(r)+".jpg"
+			data_dic["total_latency_antenna_in_radius_"+rname] = file_name+"_total_latency_antenna_in_radius_"+str(r)+".jpg"
 
-
+		plt.close('all')
 
 
 		#  ------------- LATENCY VS BUILDING DENSITY GRAPH -----------------
@@ -2013,14 +2266,14 @@ if __name__ == '__main__':
 
 		ana4 = plt.figure(figsize=(20,10))
 		ana4ax1 = ana4.add_subplot(1,1,1)
-		ana4ax1.set_title(" Latency {ms} vs Number of Buildings in radius of "+str(r)+" m")
-		ana4ax1.scatter(gps_lat_all['buildings'], gps_lat_all[lat_col], color = 'c')
+		ana4ax1.set_title(" Total Latency {ms} vs Number of Buildings in radius of "+str(r)+" m")
+		ana4ax1.scatter(gps_lat_all['buildings'], gps_lat_all[tot_lat_col], color = 'c')
 		ana4ax1.set_xlabel(" Number of Buildings {}")
-		ana4ax1.set_ylabel(" Latency {ms}")
+		ana4ax1.set_ylabel(" Total Latency {ms}")
 		#ana4ax1.set_xlim(-1,300)
 		
 		#  ------------- LATENCY VS AVERAGE BUILDING HEIGHT GRAPH-----------------
-		
+		plt.close('all')
 		print("\n---------- DRAW LATENCY VS AVERAGE BUILDING HEIGHT --------------")
 
 
@@ -2028,11 +2281,11 @@ if __name__ == '__main__':
 
 		ana5 = plt.figure(figsize=(20,10))
 		ana5ax1 = ana5.add_subplot(1,1,1)
-		ana5ax1.set_title(" Latency {ms} vs Avg Height of Buildings in radius of "+str(r)+" m")
-		ana5ax1.scatter(gps_lat_all['avg_build_height'], gps_lat_all[lat_col], color = 'm')
+		ana5ax1.set_title(" Total Latency {ms} vs Avg Height of Buildings in radius of "+str(r)+" m")
+		ana5ax1.scatter(gps_lat_all['avg_build_height'], gps_lat_all[tot_lat_col], color = 'm')
 		ana5ax1.set_xlabel(" AVG Building Height {m}")
-		ana5ax1.set_ylabel(" Latency {ms}")
-
+		ana5ax1.set_ylabel(" Total Latency {ms}")
+		plt.close('all')
 		
 		#  ------------- Latency vs Velocity Histogram -----------------
 		print("\n---------- DRAW LATENCY VS SPEED HISTOGRAM --------------")
@@ -2042,11 +2295,11 @@ if __name__ == '__main__':
 
 		ana6 = plt.figure(figsize=(20,10))
 		ana6ax1 = ana6.add_subplot(1,1,1, projection='3d')
-		ana6ax1.set_title("Latency vs Speed Histogram")
+		ana6ax1.set_title("Total Latency vs Speed Histogram")
 
-		latency_min = min(gps_lat_all[lat_col])
-		latency_max = max(gps_lat_all[lat_col])
-		hist_lv, xedges, yedges = np.histogram2d(gps_lat_all[lat_col],gps_lat_all['speed'], bins=(32,32), range=[ [latency_min, latency_max],[speed_min, speed_max]])
+		latency_min = min(gps_lat_all[tot_lat_col])
+		latency_max = max(gps_lat_all[tot_lat_col])
+		hist_lv, xedges, yedges = np.histogram2d(gps_lat_all[tot_lat_col],gps_lat_all['speed'], bins=(32,32), range=[ [latency_min, latency_max],[speed_min, speed_max]])
 		#hist_rb, xedges, yedges = np.histogram2d(channels[0].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
 		#hist_gb, xedges, yedges = np.histogram2d(channels[1].flatten(), channels[2].flatten(), bins=(32,32), range=[[0, 256], [0, 256]])
 
@@ -2073,7 +2326,7 @@ if __name__ == '__main__':
 		colors = [cmap((k-min_height)/max_height) for k in dz] 
 		ana6ax1.bar3d(ypos, xpos, zpos, dx, dy, dz, color=colors, zsort='average')
 		ana6ax1.set_ylabel("Speed {km/h}")
-		ana6ax1.set_xlabel("Latency {ms}")
+		ana6ax1.set_xlabel("Total Latency {ms}")
 
 
 		#  ------------- SAVE GRAPHS AND INSERT IN REPORT FILE -----------------
@@ -2081,6 +2334,8 @@ if __name__ == '__main__':
 		ana1.savefig(save_dir+file_name+"_lat_time_speed_all.jpg")
 		ana2.savefig(save_dir+file_name+"_lat_speed_all.jpg")
 		#ana3.savefig(save_dir+file_name+"_lat_antennas_all.jpg")
+		ana4.savefig(save_dir+file_name+"_lat_building_density.jpg")
+		ana5.savefig(save_dir+file_name+"_lat_avg_building_height.jpg")
 		ana6.savefig(save_dir+file_name+"latency_speed_hist.jpg")
 
 
@@ -2108,14 +2363,11 @@ if __name__ == '__main__':
 	figh = 14
 
 	if(True):
-
-		print("\n---------- PLOT DATA IN MPLLEAFLET --------------")
-
-
+		"""
 		colorbar5 = plt.figure(figsize=(figw,figh))
 		colorbar5ax1 = colorbar5.add_axes(rect)
-		latency_max = max(gps_lat_all[lat_col])
-		latency_min = min(gps_lat_all[lat_col])
+		latency_max = max(gps_lat_all[enc_lat_col])
+		latency_min = min(gps_lat_all[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb5 = mpl.colorbar.ColorbarBase(colorbar5ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2125,8 +2377,8 @@ if __name__ == '__main__':
 
 		colorbar0 = plt.figure(figsize=(figw,figh))
 		colorbar0ax1 = colorbar0.add_axes(rect)
-		latency_max = max(gps_lat_cam0[lat_col])
-		latency_min = min(gps_lat_cam0[lat_col])
+		latency_max = max(gps_lat_cam0[enc_lat_col])
+		latency_min = min(gps_lat_cam0[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb0 = mpl.colorbar.ColorbarBase(colorbar0ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2135,8 +2387,8 @@ if __name__ == '__main__':
 
 		colorbar1 = plt.figure(figsize=(figw,figh))
 		colorbar1ax1 = colorbar1.add_axes(rect)
-		latency_max = max(gps_lat_cam1[lat_col])
-		latency_min = min(gps_lat_cam1[lat_col])
+		latency_max = max(gps_lat_cam1[enc_lat_col])
+		latency_min = min(gps_lat_cam1[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb1 = mpl.colorbar.ColorbarBase(colorbar1ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2145,8 +2397,8 @@ if __name__ == '__main__':
 
 		colorbar2 = plt.figure(figsize=(figw,figh))
 		colorbar2ax1 = colorbar2.add_axes(rect)
-		latency_max = max(gps_lat_cam2[lat_col])
-		latency_min = min(gps_lat_cam2[lat_col])
+		latency_max = max(gps_lat_cam2[enc_lat_col])
+		latency_min = min(gps_lat_cam2[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb2 = mpl.colorbar.ColorbarBase(colorbar2ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2155,8 +2407,8 @@ if __name__ == '__main__':
 
 		colorbar3 = plt.figure(figsize=(figw,figh))
 		colorbar3ax1 = colorbar3.add_axes(rect)
-		latency_max = max(gps_lat_cam3[lat_col])
-		latency_min = min(gps_lat_cam3[lat_col])
+		latency_max = max(gps_lat_cam3[enc_lat_col])
+		latency_min = min(gps_lat_cam3[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb3 = mpl.colorbar.ColorbarBase(colorbar3ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2165,8 +2417,8 @@ if __name__ == '__main__':
 
 		colorbar4 = plt.figure(figsize=(figw,figh))
 		colorbar4ax1 = colorbar4.add_axes(rect)
-		latency_max = max(gps_lat_cam4[lat_col])
-		latency_min = min(gps_lat_cam4[lat_col])
+		latency_max = max(gps_lat_cam4[enc_lat_col])
+		latency_min = min(gps_lat_cam4[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb4 = mpl.colorbar.ColorbarBase(colorbar4ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2175,8 +2427,8 @@ if __name__ == '__main__':
 
 		colorbar11 = plt.figure(figsize=(figw,figh))
 		colorbar11ax1 = colorbar11.add_axes(rect)
-		latency_max = max(gps_lat_all[pc_lat_col])
-		latency_min = min(gps_lat_all[pc_lat_col])
+		latency_max = max(gps_lat_all[net_lat_col])
+		latency_min = min(gps_lat_all[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb11 = mpl.colorbar.ColorbarBase(colorbar11ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2186,8 +2438,8 @@ if __name__ == '__main__':
 
 		colorbar6 = plt.figure(figsize=(figw,figh))
 		colorbar6ax1 = colorbar6.add_axes(rect)
-		latency_max = max(gps_lat_cam0[pc_lat_col])
-		latency_min = min(gps_lat_cam0[pc_lat_col])
+		latency_max = max(gps_lat_cam0[net_lat_col])
+		latency_min = min(gps_lat_cam0[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb7 = mpl.colorbar.ColorbarBase(colorbar6ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2196,8 +2448,8 @@ if __name__ == '__main__':
 
 		colorbar7 = plt.figure(figsize=(figw,figh))
 		colorbar7ax1 = colorbar7.add_axes(rect)
-		latency_max = max(gps_lat_cam1[pc_lat_col])
-		latency_min = min(gps_lat_cam1[pc_lat_col])
+		latency_max = max(gps_lat_cam1[net_lat_col])
+		latency_min = min(gps_lat_cam1[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb8 = mpl.colorbar.ColorbarBase(colorbar7ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2206,8 +2458,8 @@ if __name__ == '__main__':
 
 		colorbar8 = plt.figure(figsize=(figw,figh))
 		colorbar8ax1 = colorbar8.add_axes(rect)
-		latency_max = max(gps_lat_cam2[pc_lat_col])
-		latency_min = min(gps_lat_cam2[pc_lat_col])
+		latency_max = max(gps_lat_cam2[net_lat_col])
+		latency_min = min(gps_lat_cam2[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb9 = mpl.colorbar.ColorbarBase(colorbar8ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2216,8 +2468,8 @@ if __name__ == '__main__':
 
 		colorbar9 = plt.figure(figsize=(figw,figh))
 		colorbar9ax1 = colorbar9.add_axes(rect)
-		latency_max = max(gps_lat_cam3[pc_lat_col])
-		latency_min = min(gps_lat_cam3[pc_lat_col])
+		latency_max = max(gps_lat_cam3[net_lat_col])
+		latency_min = min(gps_lat_cam3[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb10 = mpl.colorbar.ColorbarBase(colorbar9ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2226,8 +2478,8 @@ if __name__ == '__main__':
 
 		colorbar10 = plt.figure(figsize=(figw,figh))
 		colorbar10ax1 = colorbar10.add_axes(rect)
-		latency_max = max(gps_lat_cam4[pc_lat_col])
-		latency_min = min(gps_lat_cam4[pc_lat_col])
+		latency_max = max(gps_lat_cam4[net_lat_col])
+		latency_min = min(gps_lat_cam4[net_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb12 = mpl.colorbar.ColorbarBase(colorbar10ax1, cmap=color_map, norm=norm, orientation='vertical')
@@ -2237,14 +2489,76 @@ if __name__ == '__main__':
 
 		colorbar20 = plt.figure(figsize=(figw,figh))
 		colorbar20ax1 = colorbar20.add_axes(rect)
-		latency_max = max(gps_lat_all['sat'])
-		latency_min = min(gps_lat_all['sat'])
+		latency_max = max(gps_lat_all['number_of_satellites'])
+		latency_min = min(gps_lat_all['number_of_satellites'])
 		ticks = np.linspace(latency_min, latency_max, 2)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb20 = mpl.colorbar.ColorbarBase(colorbar20ax1, cmap=color_map, norm=norm, orientation='vertical')
 		cb20.set_label('{count}')
 		cb20.set_ticks(ticks)
+		"""
+		print (" - Drawing Latency Color Bars")
+		# graph n +1 color bars
+		n = 5 + 1
+		#print(n)
+		#print(np.unique(gps_lat_all["stream_id"]))
+		lat_types = ["encoding_latency","network_latency","total_latency"]
+		# store data here for easier indexing
+		switcher = {0:gps_lat_cam0,1:gps_lat_cam1,2:gps_lat_cam2,3:gps_lat_cam3,4:gps_lat_cam4,5:gps_lat_cam5}
 
+		for (lat_type) in lat_types:
+			for i in range(7):
+				#print(lat_type,i)
+				if (i == 0):
+					data = gps_lat_cam0
+				if (i == 1):
+					data = gps_lat_cam1
+				if (i == 2):
+					data = gps_lat_cam2
+				if (i == 3):
+					data = gps_lat_cam3
+				if (i == 4):
+					data = gps_lat_cam4
+				if (i == 5):
+					data = gps_lat_cam5
+				if (i == 6):
+					data = gps_lat_all
+
+				#print(data.shape)
+				colorbar20 = plt.figure(figsize=(figw,figh))
+				colorbar20ax1 = colorbar20.add_axes(rect)
+				latency_max = max(data[lat_type])
+				latency_min = min(data[lat_type])
+				ticks = np.linspace(latency_min, latency_max, 10)
+				norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+				cb20 = mpl.colorbar.ColorbarBase(colorbar20ax1, cmap=color_map, norm=norm, orientation='vertical')
+				cb20.set_label('{count}')
+				cb20.set_ticks(ticks)
+
+				if (data is gps_lat_all):
+					#print(" is gps_lat_all")
+					colorbar20.savefig(save_dir+file_name+"_"+lat_type+"_map_all_colobar.jpg")
+					data_dic[lat_type+"_map_all_colorbar"] = file_name+"_"+lat_type+"_map_all_colobar.jpg"					
+				else:
+					#print(" is other camera")
+					colorbar20.savefig(save_dir+file_name+"_"+lat_type+"_map_cam"+str(i)+"_colobar.jpg")
+					data_dic[lat_type+"_map_cam"+str(i)+"_colorbar"] = file_name+"_"+lat_type+"_map_cam"+str(i)+"_colobar.jpg"
+
+			plt.close("all")
+
+		colorbar20 = plt.figure(figsize=(figw,figh))
+		colorbar20ax1 = colorbar20.add_axes(rect)
+		latency_max = max(gps_lat_all['number_of_satellites'])
+		latency_min = min(gps_lat_all['number_of_satellites'])
+		ticks = np.linspace(latency_min, latency_max, 2)
+		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
+		cb20 = mpl.colorbar.ColorbarBase(colorbar20ax1, cmap=color_map, norm=norm, orientation='vertical')
+		cb20.set_label('{count}')
+		cb20.set_ticks(ticks)
+		colorbar20.savefig(save_dir+file_name+"_satellite_colobar.jpg")
+		data_dic["satellite_map_colorbar"] = file_name+"_satellite_colobar.jpg"
+
+		"""
 		colorbar5.savefig(save_dir+file_name+"_colorbar_map_all.jpg")
 		colorbar0.savefig(save_dir+file_name+"_colorbar_map_cam0.jpg")
 		colorbar1.savefig(save_dir+file_name+"_colorbar_map_cam1.jpg")
@@ -2276,7 +2590,7 @@ if __name__ == '__main__':
 		data_dic["pc_latency_map_cam4_colorbar"] = file_name+"_colorbar_map_cam4.jpg"
 
 		data_dic["satellite_map_colorbar"] = file_name+"_satellite_colobar.jpg"
-
+		"""
 
 		plt.close('all')
 
@@ -2289,10 +2603,10 @@ if __name__ == '__main__':
 		#plt.hold(True)
 
 		 
-		a = antenna[ antenna['x_merc'] <= (max_x+(margin*2)) ]
-		a = a[ a['x_merc'] >= (min_x-(margin*2)) ]
-		a = a[ a['y_merc'] <= (max_y+(margin*2)) ]
-		a = a[ a['y_merc'] >= (min_y-(margin*2)) ]
+		a = antenna[ antenna['lon'] <= (max_lon+(margin_epsg4326*2)) ]
+		a = a[ a['lon'] >= (min_lon-(margin_epsg4326*2)) ]
+		a = a[ a['lat'] <= (max_lat+(margin_epsg4326*2)) ]
+		a = a[ a['lat'] >= (min_lat-(margin_epsg4326*2)) ]
 
 		# create a figure to draw map
 #		map5 = plt.figure(figsize=(20,10))
@@ -2303,11 +2617,11 @@ if __name__ == '__main__':
 			sel = int(args.y)
 			# select draw GPS Latency
 			if( sel < 6):
-				fig, ax = drawWebMap(gps_lat_all, sel, a, lat_col)
+				fig, ax = drawWebMap(gps_lat_all, sel, a, enc_lat_col)
 			else:
 			# or selected draw PC Clock Latency
 				sel = sel - 6
-				fig, ax = drawWebMap(gps_lat_all, sel, a, pc_lat_col)
+				fig, ax = drawWebMap(gps_lat_all, sel, a, net_lat_col)
 
 		except: 
 			print("Requested: "+args.y)
@@ -2325,24 +2639,24 @@ if __name__ == '__main__':
 			map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
 			map5ax1.set_aspect('equal')
 			print("Drawing Latency Map for All Cameras")
-			gps_lat_all = gps_lat_all.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_all[lat_col])
+			gps_lat_all = gps_lat_all.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_all[enc_lat_col])
 			#map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = "k", s = s1+2, alpha = alpha)#,edgecolors = "k", linewidths='3')
 			map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)# ,edgecolors = "k", linewidths=0.5)
 			map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 			#map5ax1.scatter(bc['lon'], bc['lat'], color = 'green', marker='*', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			mplleaflet.show()
@@ -2353,22 +2667,22 @@ if __name__ == '__main__':
 			map0ax1 = map0.add_subplot(1,1,1)
 			map0ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 0")
-			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam0[lat_col])
+			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam0[enc_lat_col])
 			map0ax1.scatter(gps_lat_cam0['lon'], gps_lat_cam0['lat'], color = colores, s = s1, alpha = alpha)
 			map0ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map0ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2381,22 +2695,22 @@ if __name__ == '__main__':
 			map1ax1 = map1.add_subplot(1,1,1)
 			map1ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 1")
-			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam1[lat_col])
+			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam1[enc_lat_col])
 			map1ax1.scatter(gps_lat_cam1['lon'], gps_lat_cam1['lat'], color = colores, s = s1, alpha = alpha)
 			map1ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map1ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2409,22 +2723,22 @@ if __name__ == '__main__':
 			map2ax1 = map2.add_subplot(1,1,1)
 			map2ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 2")
-			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam2[lat_col])
+			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam2[enc_lat_col])
 			map2ax1.scatter(gps_lat_cam2['lon'], gps_lat_cam2['lat'], color = colores, s = s1, alpha = alpha)
 			map2ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map2ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2437,22 +2751,22 @@ if __name__ == '__main__':
 			map3ax1 = map3.add_subplot(1,1,1)
 			map3ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 3")
-			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam3[lat_col])
+			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam3[enc_lat_col])
 			map3ax1.scatter(gps_lat_cam3['lon'], gps_lat_cam3['lat'], color = colores, s = s1, alpha = alpha)
 			map3ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map3ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2465,22 +2779,22 @@ if __name__ == '__main__':
 			map4ax1 = map4.add_subplot(1,1,1)
 			map4ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 3")
-			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam4[lat_col])
+			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[enc_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam4[enc_lat_col])
 			map4ax1.scatter(gps_lat_cam4['lon'], gps_lat_cam4['lat'], color = colores, s = s1, alpha = alpha)
 			map4ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[lat_col])
-			min_lat = min(gps_lat_all[lat_col])
+			max_lat = max(gps_lat_all[enc_lat_col])
+			min_lat = min(gps_lat_all[enc_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[enc_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[enc_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[lat_col],ascending=False)
+			highest = highest.sort_values(by=[enc_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[lat_col])		
+			colores = getColorMap(highest[enc_lat_col])		
 			map4ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2493,23 +2807,23 @@ if __name__ == '__main__':
 			map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
 			map5ax1.set_aspect('equal')
 			print("Drawing Latency Map for All Cameras")
-			gps_lat_all = gps_lat_all.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_all[pc_lat_col])
+			gps_lat_all = gps_lat_all.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_all[net_lat_col])
 			#map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = "k", s = s1+2, alpha = alpha)#,edgecolors = "k", linewidths='3')
 			map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)	
 			map5ax1.scatter(gps_lat_all['lon'], gps_lat_all['lat'], color = colores, s = s1, alpha = alpha)# ,edgecolors = "k", linewidths=0.5)
 			
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2523,22 +2837,22 @@ if __name__ == '__main__':
 			map0ax1 = map0.add_subplot(1,1,1)
 			map0ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 0")
-			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam0[pc_lat_col])
+			gps_lat_cam0 = gps_lat_cam0.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam0[net_lat_col])
 			map0ax1.scatter(gps_lat_cam0['lon'], gps_lat_cam0['lat'], color = colores, s = s1, alpha = alpha)
 			map0ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map0ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2546,29 +2860,28 @@ if __name__ == '__main__':
 
 			mplleaflet.show()
 
-
 		if(args.y == "7"):
 			#name = "Blues"
 			map1 = plt.figure(figsize=(20,10))
 			map1ax1 = map1.add_subplot(1,1,1)
 			map1ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 1")
-			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam1[pc_lat_col])
+			gps_lat_cam1 = gps_lat_cam1.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam1[net_lat_col])
 			map1ax1.scatter(gps_lat_cam1['lon'], gps_lat_cam1['lat'], color = colores, s = s1, alpha = alpha)
 			map1ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 			
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map1ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			mplleaflet.show()
@@ -2582,22 +2895,22 @@ if __name__ == '__main__':
 			map2ax1 = map2.add_subplot(1,1,1)
 			map2ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 2")
-			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam2[pc_lat_col])
+			gps_lat_cam2 = gps_lat_cam2.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam2[net_lat_col])
 			map2ax1.scatter(gps_lat_cam2['lon'], gps_lat_cam2['lat'], color = colores, s = s1, alpha = alpha)
 			map2ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 			
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map2ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			mplleaflet.show()
@@ -2608,22 +2921,22 @@ if __name__ == '__main__':
 			map3ax1 = map3.add_subplot(1,1,1)
 			map3ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 3")
-			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam3[pc_lat_col])
+			gps_lat_cam3 = gps_lat_cam3.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam3[net_lat_col])
 			map3ax1.scatter(gps_lat_cam3['lon'], gps_lat_cam3['lat'], color = colores, s = s1, alpha = alpha)
 			map3ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 			
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map3ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 			
@@ -2635,22 +2948,22 @@ if __name__ == '__main__':
 			map4ax1 = map4.add_subplot(1,1,1)
 			map4ax1.set_aspect('equal')
 			print("Drawing Latency Map for Camera 3")
-			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[pc_lat_col],ascending=False)
-			colores = getColorMap(gps_lat_cam4[pc_lat_col])
+			gps_lat_cam4 = gps_lat_cam4.sort_values(by=[net_lat_col],ascending=False)
+			colores = getColorMap(gps_lat_cam4[net_lat_col])
 			map4ax1.scatter(gps_lat_cam4['lon'], gps_lat_cam4['lat'], color = colores, s = s1, alpha = alpha)
 			map4ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 			
 			# highlight highest values by drawing them again
-			max_lat = max(gps_lat_all[pc_lat_col])
-			min_lat = min(gps_lat_all[pc_lat_col])
+			max_lat = max(gps_lat_all[net_lat_col])
+			min_lat = min(gps_lat_all[net_lat_col])
 			lat34 = (max_lat-min_lat)*0.25
-			highest = gps_lat_all[ gps_lat_all[pc_lat_col] > (max_lat - lat34)  ]
+			highest = gps_lat_all[ gps_lat_all[net_lat_col] > (max_lat - lat34)  ]
 			# add lowest value just for the color map to be correct
-			lowest = gps_lat_all[ gps_lat_all[pc_lat_col] == (min_lat)]
+			lowest = gps_lat_all[ gps_lat_all[net_lat_col] == (min_lat)]
 			highest = pd.concat([highest,lowest], ignore_index=True)
-			highest = highest.sort_values(by=[pc_lat_col],ascending=False)
+			highest = highest.sort_values(by=[net_lat_col],ascending=False)
 			print(highest)
-			colores = getColorMap(highest[pc_lat_col])		
+			colores = getColorMap(highest[net_lat_col])		
 			map4ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1+25, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 
@@ -2682,7 +2995,7 @@ if __name__ == '__main__':
 
 
 
-		myfile = codecs.open('fm3.md','r', encoding='utf-8' )
+		myfile = codecs.open('fm4.md','r', encoding='utf-8' )
 		data=myfile.read()
 		myfile.close()
 		#print data
@@ -2705,11 +3018,11 @@ if __name__ == '__main__':
 
 
 		key = "AIzaSyAood30jRDeVrxCrsEiRxUr1X7F5ZNTQ7Q"
-		gps_lat_all = gps_lat_all.sort_values(by=[lat_col], ascending = False)
+		gps_lat_all = gps_lat_all.sort_values(by=[enc_lat_col], ascending = False)
 		ix = gps_lat_all.index.values
-		max_lat1 = gps_lat_all.at[ix[0],lat_col]
-		max_lat2 = gps_lat_all.at[ix[1],lat_col]
-		max_lat3 = gps_lat_all.at[ix[2],lat_col]
+		max_lat1 = gps_lat_all.at[ix[0],enc_lat_col]
+		max_lat2 = gps_lat_all.at[ix[1],enc_lat_col]
+		max_lat3 = gps_lat_all.at[ix[2],enc_lat_col]
 		max_lat1_c = str(gps_lat_all.at[ix[0],'lat'])+","+str(gps_lat_all.at[ix[0],'lon'])
 		max_lat2_c = str(gps_lat_all.at[ix[1],'lat'])+","+str(gps_lat_all.at[ix[1],'lon'])
 		max_lat3_c = str(gps_lat_all.at[ix[2],'lat'])+","+str(gps_lat_all.at[ix[2],'lon'])
@@ -2778,15 +3091,17 @@ if __name__ == '__main__':
 	gps_lat_cam2.to_csv(save_dir+"gps_lat_cam2.csv", sep=",",header=True)
 	gps_lat_cam3.to_csv(save_dir+"gps_lat_cam3.csv", sep=",",header=True)
 	gps_lat_cam4.to_csv(save_dir+"gps_lat_cam4.csv", sep=",",header=True)
+	gps_lat_cam5.to_csv(save_dir+"gps_lat_cam5.csv", sep=",",header=True)
+
 	antenna.to_csv(save_dir+"antenna.csv", sep=",",header=True)
 
 
 
-	if(True):
+	if(False):
 
 		# original data import
 		o_data = pd.read_csv("data.csv", sep=",", header = 0)
-		data1 = o_data.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height', lat_col]]
+		data1 = o_data.loc[:,['lat','lon','antennas','speed','ele','buildings','avg_build_height', enc_lat_col]]
 
 
 		#print(data1.head())
@@ -2855,7 +3170,7 @@ if __name__ == '__main__':
 		# use this cmap
 		name = 'RdYlGn'
 		color_map=plt.get_cmap(name)
-		colores = getColorMap(data1[lat_col])
+		colores = getColorMap(data1[enc_lat_col])
 		#ax2.scatter(y[:,0], [0]*len(y[:,0]), color = colores)
 		ax2.scatter(y[:,0],y[:,1], color = colores)
 		# R-G-B Scatter
@@ -2866,8 +3181,8 @@ if __name__ == '__main__':
 		#Plot color bar
 		rect = 0.92,0.1,0.025,0.8
 		colbar = figk.add_axes(rect)
-		latency_max = max(data1[lat_col])
-		latency_min = min(data1[lat_col])
+		latency_max = max(data1[enc_lat_col])
+		latency_min = min(data1[enc_lat_col])
 		ticks = np.linspace(latency_min, latency_max, 10)
 		norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 		cb5 = mpl.colorbar.ColorbarBase(colbar, cmap=color_map, norm=norm, orientation='vertical')
