@@ -12,6 +12,7 @@
     - 30 fps
     - lte connection
     - gop : 1
+    - place : {place}
 
 <!-- pagebreak -->
 

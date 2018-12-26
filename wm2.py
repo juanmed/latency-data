@@ -232,12 +232,21 @@ if(True):
 
 	data = data.sort_values(by=[col],ascending=False)
 	colores = getColorMap(data[col])
+	# define a function to draw points with radius varying according to latency
+	#q = 3
+	#k = 7
+	max_lat = max(data[col])
+	min_lat = min(data[col])
+	#m = (k-q)/(max_lat - min_lat)
+	#b = q - m*min_lat
+	#rads = map(lambda lat: lat*m + b,data[col])
+	#rads = np.exp(rads)
+	#print(max(rads), min(rads))
 	map5ax1.scatter(data['lon'], data['lat'], color = colores, s = s1, alpha = alpha)# ,edgecolors = "k", linewidths=0.5)
 	map5ax1.scatter(a['lon'], a['lat'], color = 'blue', marker='^', s = s2)
 	# highlight highest values by drawing them again
-	max_lat = max(data[col])
-	min_lat = min(data[col])
-	lat34 = (max_lat-min_lat)*0.25
+
+	lat34 = (max_lat-min_lat)*0.2
 	highest = data[ data[col] > (max_lat - lat34)  ]
 	# add lowest value just for the color map to be correct
 	lowest = data[ data[col] == (min_lat)]
@@ -245,9 +254,12 @@ if(True):
 	highest = highest.sort_values(by=[col],ascending=False)
 	#print(highest)
 	colores = getColorMap(highest[col])		
-	map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1*2, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
+	map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1*4, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
 	mplleaflet.show()
+
+	#map5ax1.plot(rads)
+	#plt.show()
 	"""
 
 	if(args.y == "5"):

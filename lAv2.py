@@ -125,6 +125,8 @@ def createCommandLineParser():
 	parser1.add_argument('-y', help='Number of camera for which latency map will be draw, 5 = all cameras', default="5")
 	parser1.add_argument('-q', help='Colormap to be used [viridis_r, magma_r, inferno_r]', default="inferno_r")
 	parser1.add_argument('-o', help='Bin number for Encoding Latency Histogram', default="5")
+	parser1.add_argument('-p', help='Test Place', default="Downtown")
+
 	#parser.add_argument('-w', help='Path to rotated image', default='r1.jpg')
 	args = parser1.parse_args()
 	return args
@@ -2532,7 +2534,7 @@ if __name__ == '__main__':
 				ticks = np.linspace(latency_min, latency_max, 10)
 				norm = mpl.colors.Normalize(vmin=latency_min, vmax=latency_max)
 				cb20 = mpl.colorbar.ColorbarBase(colorbar20ax1, cmap=color_map, norm=norm, orientation='vertical')
-				cb20.set_label('{count}')
+				cb20.set_label('{ms}')
 				cb20.set_ticks(ticks)
 
 				if (data is gps_lat_all):
@@ -2990,6 +2992,7 @@ if __name__ == '__main__':
 		data_dic["date"]=date
 		data_dic["name"]=args.t
 		data_dic["video_res"]=args.r
+		data_dic["place"] = args.p
 		#data_dic["track_image_path"]=args.a
 		#data_dic["data_image_path"] = args.k
 
