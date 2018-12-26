@@ -24,6 +24,26 @@ and overwriting the in the folder QGIS_HOME\apps\qgis\resources\ . Then when you
 
 This script will probably only run in Ubuntu. To run it, save logAnalysis.py, and the log files in a folder in the same directory. 
 
+### Version 2
+
+The scripts lAv2.py and wm2.py replace the previous scripts for generating graphs and web maps. To use them, it is necessary to use the adequate file format. Download the scripts lAV2.py and wm2.py and in a folder in the same download directory store the log files. Execute first lAv2.py like this
+
+python lAv2.py -f [path_to_csv_file] -r [resolution] -t [test_name]  -x [file_format_number] -y 0 -b [number_of_bins_for_network_latency_histogram] -o [number_of_bins_for_encoding_latency_histogram] -p [name_of_place_of_test]
+
+This will create all the graphs for the log file input in the f argument. Then use the wm2.py script for generating latency web maps like this:
+
+python wm2.py -f [path_to_csv_file] -y [camera_number]
+
+It is necessary to execute this script for every camera whose latency map you want to generate. 
+Camera numbers from 0 - 10 will generate Encoding Latency map.
+10-19 will generate Network Latency map.
+20-29 will generate Total Latency map.
+
+For example, -y 1  will generate Encoding Latency Map for camera 1. -y 12 will generate Network Latency map for Camera 2.  -y 23  will generate Total Latency Map for camera 3. You can think of the first number as the type of latency that will be drawn, and the second number as the camera number for which the map will be draw.
+
+
+### Version 1
+
 First you need to run logAnalysis.py, which will generate all the graphs and several csv documents. Then you need to run web_map_draw.py to generate all the latency maps. This maps will be displayed in the web browser and you need to save one by one. 
 
 Then use the following command:
