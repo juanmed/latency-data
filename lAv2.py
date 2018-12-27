@@ -2548,6 +2548,7 @@ if __name__ == '__main__':
 
 			plt.close("all")
 
+		rect = 0.1,0.05,0.4,0.9
 		colorbar20 = plt.figure(figsize=(figw,figh))
 		colorbar20ax1 = colorbar20.add_axes(rect)
 		latency_max = max(gps_lat_all['number_of_satellites'])

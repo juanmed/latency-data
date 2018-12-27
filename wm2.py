@@ -87,7 +87,7 @@ gps_lat_cam1 = pd.read_csv(save_dir+"gps_lat_cam1.csv", sep=",", header = 0)
 gps_lat_cam2 = pd.read_csv(save_dir+"gps_lat_cam2.csv", sep=",", header = 0)
 gps_lat_cam3 = pd.read_csv(save_dir+"gps_lat_cam3.csv", sep=",", header = 0)
 gps_lat_cam4 = pd.read_csv(save_dir+"gps_lat_cam4.csv", sep=",", header = 0)
-gps_lat_cam5 = pd.read_csv(save_dir+"gps_lat_cam4.csv", sep=",", header = 0)
+gps_lat_cam5 = pd.read_csv(save_dir+"gps_lat_cam5.csv", sep=",", header = 0)
 antenna = pd.read_csv(save_dir+"antenna.csv", sep=",", header = 0)
 
 
@@ -142,8 +142,8 @@ if(True):
 	 
 	a = antenna[ antenna['lon'] <= (max_lon+(margin_epsg4326*2)) ]
 	a = a[ a['lon'] >= (min_lon-(margin_epsg4326*2)) ]
-	a = a[ a['lat'] <= (max_lat+(margin_epsg4326*2)) ]
-	a = a[ a['lat'] >= (min_lat-(margin_epsg4326*2)) ]
+	a = a[ a['lat'] <= (max_lat+(margin_epsg4326*0.5)) ]
+	a = a[ a['lat'] >= (min_lat-(margin_epsg4326*0.5)) ]
 
 	# create a figure to draw map
 	#map5 = plt.figure(figsize=(20,10))
@@ -175,7 +175,9 @@ if(True):
 	"""
 	#name = "Greys"
 	map5 = plt.figure(figsize=(20,10))
-	map5ax1 = map5.add_subplot(1,1,1) #add_axes(rect)
+	map5ax1 = map5.add_subplot(1,1,1, alpha=0.5) #add_axes(rect)
+	map5ax1.patch.set_facecolor('k')
+	map5ax1.patch.set_alpha(0.5)
 	map5ax1.set_aspect('equal')
 	try:
 		sel = int(args.y)
@@ -183,16 +185,20 @@ if(True):
 		if(sel < 10):
 			col = 'encoding_latency'
 			m = "Drawing Encoding Latency "
+			map_name = "encoding_latency_map"
 		# if selected network latency
 		elif(sel < 20):
 			col = 'network_latency'
 			sel = sel - 10
 			m = "Drawing Network Latency "
+			map_name = "network_latency_map"
+
 		# if selected total latency
 		elif(sel < 30):
 			col = 'total_latency'
 			sel = sel - 20
 			m = "Drawing Total Latency "
+			map_name = "total_latency_map"
 		else:
 			print(" - Unexisting camera number.")
 
@@ -202,10 +208,12 @@ if(True):
 		# have to input camera ids for now
 		if( sel > max([0,1,2,3,4,5]) ):
 			m = m + "for All Cameras"
+			map_name = map_name + "_all"
 			data = gps_lat_all
 		#if not will draw data for all cameras
 		else:
 			m = m + "for Camera {}".format(sel)
+			map_name = map_name + "_cam{}".format(sel)
 			#switcher = {0:gps_lat_cam0,1:gps_lat_cam1,2:gps_lat_cam2,3:gps_lat_cam3,4:gps_lat_cam4,5:gps_lat_cam5}
 			#data = switcher.get(sel)
 			
@@ -227,6 +235,7 @@ if(True):
 		col = "number_of_satellites"
 		data = gps_lat_all
 		m = "Drawing Satellite Count for All Cameras"
+		map_name="satellite_map"
 
 	print(m)
 
@@ -254,9 +263,9 @@ if(True):
 	highest = highest.sort_values(by=[col],ascending=False)
 	#print(highest)
 	colores = getColorMap(highest[col])		
-	map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1*4, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
+	map5ax1.scatter(highest['lon'], highest['lat'], color = colores, s = s1*3.5, alpha = 1.0)# ,edgecolors = "k", linewidths=0.5)
 
-	mplleaflet.show()
+	mplleaflet.show(path=save_dir + map_name+".html", im_name=save_dir + map_name+".png")
 
 	#map5ax1.plot(rads)
 	#plt.show()
