@@ -5,7 +5,6 @@ This project works with python. Uses pandas, numpy and several other graphing li
 Antenna Data for South Korean Republic
 
 
-
 Building height data for South Korean Republic
 
 Statistical information can obtained from the South Korean National Spatial Data Infrastructure Portal Open Datasets at: http://www.nsdi.go.kr, more specifically from http://data.nsdi.go.kr/dataset/12623
@@ -40,6 +39,14 @@ Camera numbers from 0 - 10 will generate Encoding Latency map.
 20-29 will generate Total Latency map.
 
 For example, -y 1  will generate Encoding Latency Map for camera 1. -y 12 will generate Network Latency map for Camera 2.  -y 23  will generate Total Latency Map for camera 3. You can think of the first number as the type of latency that will be drawn, and the second number as the camera number for which the map will be draw.
+
+Important! You have to modify the mplleaflet library according to the next section in order to use wm2.py. 
+
+#### Webmap screenshot automation
+
+Taking a screenshot of every web latency map is a tedious an inefficient process. You can modify the mplleaflet library in order to automate taking this screenshot. In order to do so, follow the comment at https://github.com/jwass/mplleaflet/issues/37  
+
+Although this process is not the best (compared to generating an image from the html file) is a reasonable solution.
 
 
 ### Version 1
