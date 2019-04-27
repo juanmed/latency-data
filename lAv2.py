@@ -72,6 +72,7 @@ def getDropRate(a):
 	minseq = min(c['image_sequence_number'])
 	maxseq = max(c['image_sequence_number'])
 	#print ("min seq: "+str(minseq)+" max seq: "+str(maxseq))
+	#get total number of frame
 	m = k*(maxseq-minseq+1)
 	#print("m: "+str(m))
 	# get droprate
@@ -166,7 +167,7 @@ def drawEncodingLatencyHistogram(data,dic,bins):
 	# first draw GPS for the whole dataset
 	units = ["Encoding Latency {ms}", "Count"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphHistogram([data["encoding_latency"]], bins, ["mediumvioletred"], ["Encoding Latency All Cameras Histogram"], units, title, save_dir, dic)	
+	dic1 = graphHistogram([data["encoding_latency"]], bins, ["mediumvioletred"], ["Encoding Latency All Cameras Histogram"], units, title, save_dir, dic)
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -557,7 +558,8 @@ def getGPXDataFrame(gpxfile, file_type):
 	#print(gpx_data.tracks[0].segments[0].points[0].latitude)
 	#print(type(gpx_data.tracks[0].segments[0].points[0].latitude))
 	#print(gpx.dtypes)
-		
+
+	#Create a data frame containing data from all points
 	lat = list()
 	lon = list()
 	ele = list()
@@ -663,7 +665,7 @@ def alignGPSandLatency(latency_data, gps_data,option):
 	gps_with_latency = gps_data.reindex(latency_data.index.tolist())
 	#print("tdi after crop: "+str(len(track_datapoints_crop.index.tolist())))
 
-	#
+	#when there is no start or end frame of data
 	if( pd.isna(gps_with_latency.iloc[0]['lat']) ):
 		#print("El primera es NaN")
 		gps_with_latency.at[start_time,'lat']=gps_data.at[gps_index[0],'lat']
@@ -722,8 +724,8 @@ def alignGPSandLatency(latency_data, gps_data,option):
 	return gps_with_latency
 
 # get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
-# 'a' is a dataframe containing the position of all antennas in lat,lon
-# the distance is calculated using a simple approximation: the eart is flat  between the 2 points
+# 'a' is a data frame containing the position of all antennas in lat,lon
+# the distance is calculated using a simple approximation: the earth is flat  between the 2 points
 def getSurroundingAntennas(p, r, a):
 	count = 0
 
@@ -933,7 +935,7 @@ if __name__ == '__main__':
 
 	#print clog.head(10)
 
-
+	# Calculate Time
 	# c = offset UTC (+0900) in milliseconds
 	c = 32400000
 	if 'time' not in clog.columns:
@@ -1048,6 +1050,7 @@ if __name__ == '__main__':
 	# draw Offset GPS Player Histogram
 	data_dic = drawOffsetGPSPlayerHistogram(clog,data_dic,1)
 	#print(data_dic)
+	# draw Number of Satelites Histogram
 	print(" - Number of Satellites Histogram")
 	unit = ['Number of Satellite','Count']
 	data_dic = graphHistogram([clog['number_of_satellites']],1,['r'],['Number of Satellites Histogram'],unit,args.t,save_dir,data_dic)
