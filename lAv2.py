@@ -586,6 +586,7 @@ def getGPXDataFrame(gpxfile, file_type):
 					speed.append(0)
 				#print('Point at ({0},{1}) -> ({2},{3})'.format(point.latitude, point.longitude, point.elevation, point.time))
 				#print (type(point.latitude), type(point.longitude), type(point.elevation), type(point.time))
+
 	speed[0] = speed[1]
 	columns = {'lat':lat,'lon':lon,'ele':ele,'time':time,'speed':speed}
 	points = pd.DataFrame(columns)
@@ -882,9 +883,13 @@ if __name__ == '__main__':
 		if args.x == "3":   # newest format 
 			print (" - Received format 3")
 			log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]				# newest format 20181214
-		#if args.x == "4":
-		#	log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]	
-
+		if args.x == "4":
+		#	log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]
+			log_raw.columns = ["id","seq","timestamp_streamer_grab","timestamp_streamer_send","timestamp_streamer_recv",
+							   "timestamp_gps_grab","timestamp_gps_send","timestamp_gps_recv","timestamp_player_grab",
+							   "timestamp_player_send","timestamp_player_recv","timestamp_gps_grab_raw","timestamp_gps_send_raw",
+							   "timestamp_gps_recv_raw","offset_gps_streamer","offset_gps_player","longitude","latitude",
+							   "number_of_satellites","packet_size"]
 
 
 	print("\n - Cleaning")
@@ -899,11 +904,13 @@ if __name__ == '__main__':
 		print("   and Parsing...")
 		#print(clog.dtypes)
 		#clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,float,float,int,int])
+
 		print("   done!")
 		# copy necessary data to make gps file later
 		gps_data_s = pd.DataFrame()
 		gps_data_s['longitude'] = clog['longitude']
 		gps_data_s['latitude'] = clog['latitude']
+
 		#gps_data['send_UTC'] = log_raw['send_UTC']
 
 		#  drop lon, lat columns that will be imported afterwards
@@ -944,15 +951,16 @@ if __name__ == '__main__':
 		if args.x == "3":
 			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['send_UTC'])
 		if args.x == "4":
-			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['timestamp_gps_grab'])
+			clog["time"] = list(map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['timestamp_gps_grab']))
 			#print(clog.head(10))
-		
+
 	gps_data_s['time'] = clog['time'].copy()
 
 	# following will group data by index. This is because for a new data format
 	# there can be multiple gps locations for the same timestamp, which leads to
 	# repeated elements in the index. So we take the location to be the average
 	# of the gps locations for each timestamp
+
 	gps_data_s = gps_data_s.groupby('time').mean().sort_index()
 	gps_data_s = gps_data_s.reset_index()
 	#print(gps_data_s.head(10))
@@ -1072,8 +1080,9 @@ if __name__ == '__main__':
 	# or in the same file
 	if(args.x == "1" or args.x=="2"):
 		gpx_file = open(args.g, 'r')
-		track_datapoints = getGPXDataFrame(gpx_file,args.x)
+		#track_datapoints = getGPXDataFrame(gpx_file,args.x)
 	if(args.x == "3" or args.x == "4"):
+
 		track_datapoints = getGPXDataFrame(gps_data_s,args.x)
 	#print (track_datapoints.head())
 
@@ -1165,6 +1174,7 @@ if __name__ == '__main__':
 
 	# need this file for other calculations ... cannot be inside if()
 	buildings = gpd.read_file("maps/buildings/Buildings_University2.geojson")
+
 	# calculate display region
 	margin_epsg4326 = 0.005  # the number of degrees by which the search area will be extended
 	margin = 500.0
@@ -1246,26 +1256,26 @@ if __name__ == '__main__':
 
 
 
-		gps_lat_all['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_all['lon'])
-		gps_lat_all['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_all['lat'])
+		gps_lat_all['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_all['lon']))
+		gps_lat_all['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_all['lat']))
 
-		gps_lat_cam0['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon'])
-		gps_lat_cam0['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat'])
+		gps_lat_cam0['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon']))
+		gps_lat_cam0['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat']))
 
-		gps_lat_cam1['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon'])
-		gps_lat_cam1['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat'])
+		gps_lat_cam1['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon']))
+		gps_lat_cam1['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat']))
 
-		gps_lat_cam2['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon'])
-		gps_lat_cam2['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat'])
+		gps_lat_cam2['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon']))
+		gps_lat_cam2['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat']))
 
-		gps_lat_cam3['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon'])
-		gps_lat_cam3['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat'])
+		gps_lat_cam3['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon']))
+		gps_lat_cam3['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat']))
 
-		gps_lat_cam4['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon'])
-		gps_lat_cam4['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat'])
+		gps_lat_cam4['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon']))
+		gps_lat_cam4['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat']))
 
-		antenna['x_merc'] = map(lambda x: lon_to_mercator(x),antenna['lon'])
-		antenna['y_merc'] = map(lambda x: lat_to_mercator(x),antenna['lat'])
+		antenna['x_merc'] = list(map(lambda x: lon_to_mercator(x),antenna['lon']))
+		antenna['y_merc'] = list(map(lambda x: lat_to_mercator(x),antenna['lat']))
 
 
 
@@ -1300,7 +1310,8 @@ if __name__ == '__main__':
 	   	# 	ax.annotate(txt, (z[i], y[i]))
 
 	   	# now annotate sequece
-	   	map(lambda seq,x,y: track1.annotate("{:.0f}".format(seq),(x,y), fontsize= 'medium', fontweight = 'bold', rotation = 30),seq_labels['image_sequence_number'],seq_labels['x_merc'],seq_labels['y_merc'])
+		map(lambda seq, x, y: track1.annotate("{:.0f}".format(seq), (x, y), fontsize='medium', fontweight='bold',rotation=30),
+			seq_labels['image_sequence_number'], seq_labels['x_merc'], seq_labels['y_merc'])
 
 		track1.legend(loc='upper left', shadow=True, fontsize='x-large')
 		#admin.plot(ax=map5ax1, color='white', edgecolor='black',alpha = 0.2)
@@ -1605,7 +1616,7 @@ if __name__ == '__main__':
 		r_names = ["r4", "r3", "r2", "r1", "r0"]
 		for (rname, r) in zip(r_names,r_search):
 			#data_dic['r']=r
-			gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon'])
+			gps_lat_all['antennas'] = list(map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon']))
 
 			ana3 = plt.figure(figsize=(20,10))
 			ana3ax1 = ana3.add_subplot(1,1,1)
@@ -1656,7 +1667,7 @@ if __name__ == '__main__':
 		"""
 
 		#get the number of surroinding buildings for each point
-		gps_lat_all['buildings'] = map(lambda x,y: getSurroundingBuildings([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
+		gps_lat_all['buildings'] = list(map(lambda x,y: getSurroundingBuildings([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon']))
 
 		ana4 = plt.figure(figsize=(20,10))
 		ana4ax1 = ana4.add_subplot(1,1,1)
@@ -1671,7 +1682,7 @@ if __name__ == '__main__':
 		print("\n---------- DRAW LATENCY VS AVERAGE BUILDING HEIGHT --------------")
 
 
-		gps_lat_all['avg_build_height'] = map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
+		gps_lat_all['avg_build_height'] = list(map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon']))
 
 		ana5 = plt.figure(figsize=(20,10))
 		ana5ax1 = ana5.add_subplot(1,1,1)
