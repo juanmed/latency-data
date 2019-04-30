@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import argparse
@@ -284,7 +285,7 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 		max_val = max(data_series[0])
 		avg = data_series[0].mean()
 		std = data_series[0].std()
-		ax.set_title(names[0]+" min: {:.2f}".format(min_val)+", max: {:.2f}".format(max_val)+", mean: {:.2f}".format(avg)+" std: {:.2f}".format(std))
+		ax.set_title(names[0]+" min: {:.2f}".format(min_val)+", max: {:.2f}".format(max_val)+", avg: {:.2f}".format(avg)+" stdev: {:.2f}".format(std))
 		
 		# fill data for md file creation later
 		key = names[0]+"_min"
@@ -824,7 +825,14 @@ def drawWebMap(data, cam_num, ant, col):
 	# now draw 4G antennas
 	ax.scatter(ant['lon'], ant['lat'], color = 'blue', marker='^', s = s2)
 
-	return fig, ax 
+	return fig, ax
+
+def customCmap():
+	new_color = list()
+	for i in range(256):
+		new_color.append([i/255, 0, 1-i/255, 1.0])
+	new_cmap = mcolors.ListedColormap(new_color)
+	return new_cmap
 
 opt = 1   #option 2 = get max latency, 0 min lat, 1 avg lat
 #name = "inferno_r"
@@ -857,8 +865,11 @@ if __name__ == '__main__':
 		save_dir = save_dir + element+"/"
 	print("Save dir:"+save_dir)
 
+	# customize color map
+	name = customCmap()
+
 	# use this cmap
-	name = args.q
+	#name = args.q
 
 	print (" - Importing Data...")
 
