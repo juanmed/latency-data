@@ -240,7 +240,7 @@ def drawOffsetGPSPlayerHistogram(data,dic,bins):
 	# first draw GPS for the whole dataset
 	units = ["Offset GPS Player {ms}", "Count"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphHistogram([data["offset_gps_player"]], bins, ["mediumvioletred"], ["Offset GPS Player All Cameras Histogram"], units, title, save_dir, dic)	
+	dic1 = graphHistogram([data["offset_gps_player"]], bins, ["mediumvioletred"], ["Offset GPS Player All Cameras Histogram"], units, title, save_dir, dic)
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -1483,6 +1483,15 @@ if __name__ == '__main__':
 			map2.savefig(save_dir+file_name+"_latency_map_cam2.jpg")
 			map3.savefig(save_dir+file_name+"_latency_map_cam3.jpg")
 			map4.savefig(save_dir+file_name+"_latency_map_cam4.jpg")
+
+		# data_dic["encoding_latency_map_all"] = file_name+"_latency_map_all.jpg"
+		# data_dic["encoding_latency_map_cam0"] = file_name+"_latency_map_cam0.jpg"
+		# data_dic["encoding_latency_map_cam1"] = file_name+"_latency_map_cam1.jpg"
+		# data_dic["encoding_latency_map_cam2"] = file_name+"_latency_map_cam2.jpg"
+		# data_dic["encoding_latency_map_cam3"] = file_name+"_latency_map_cam3.jpg"
+		# data_dic["encoding_latency_map_cam4"] = file_name+"_latency_map_cam4.jpg"
+		#
+
 
 
 		data_dic["lat_gps_all"] = file_name+"_latency_map_all.jpg"
