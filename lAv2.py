@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.dates as mdates
+import matplotlib.colors as mcolors
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import argparse
@@ -72,6 +73,7 @@ def getDropRate(a):
 	minseq = min(c['image_sequence_number'])
 	maxseq = max(c['image_sequence_number'])
 	#print ("min seq: "+str(minseq)+" max seq: "+str(maxseq))
+	#get total number of frame
 	m = k*(maxseq-minseq+1)
 	#print("m: "+str(m))
 	# get droprate
@@ -166,7 +168,7 @@ def drawEncodingLatencyHistogram(data,dic,bins):
 	# first draw GPS for the whole dataset
 	units = ["Encoding Latency {ms}", "Count"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphHistogram([data["encoding_latency"]], bins, ["mediumvioletred"], ["Encoding Latency All Cameras Histogram"], units, title, save_dir, dic)	
+	dic1 = graphHistogram([data["encoding_latency"]], bins, ["mediumvioletred"], ["Encoding Latency All Cameras Histogram"], units, title, save_dir, dic)
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -238,7 +240,7 @@ def drawOffsetGPSPlayerHistogram(data,dic,bins):
 	# first draw GPS for the whole dataset
 	units = ["Offset GPS Player {ms}", "Count"]
 	title = args.t  # Set the title of the graph as the name of the experiment
-	dic1 = graphHistogram([data["offset_gps_player"]], bins, ["mediumvioletred"], ["Offset GPS Player All Cameras Histogram"], units, title, save_dir, dic)	
+	dic1 = graphHistogram([data["offset_gps_player"]], bins, ["mediumvioletred"], ["Offset GPS Player All Cameras Histogram"], units, title, save_dir, dic)
 
 	# now draw for all cameras
 	colors = ["r", "g", "b", "m", "c", "sandybrown"]
@@ -283,7 +285,7 @@ def graphTimeSeries(data_series, time_series, colors, linestyles, names, time_na
 		max_val = max(data_series[0])
 		avg = data_series[0].mean()
 		std = data_series[0].std()
-		ax.set_title(names[0]+" min: {:.2f}".format(min_val)+", max: {:.2f}".format(max_val)+", mean: {:.2f}".format(avg)+" std: {:.2f}".format(std))
+		ax.set_title(names[0]+" min: {:.2f}".format(min_val)+", max: {:.2f}".format(max_val)+", avg: {:.2f}".format(avg)+" stdev: {:.2f}".format(std))
 		
 		# fill data for md file creation later
 		key = names[0]+"_min"
@@ -557,7 +559,8 @@ def getGPXDataFrame(gpxfile, file_type):
 	#print(gpx_data.tracks[0].segments[0].points[0].latitude)
 	#print(type(gpx_data.tracks[0].segments[0].points[0].latitude))
 	#print(gpx.dtypes)
-		
+
+	#Create a data frame containing data from all points
 	lat = list()
 	lon = list()
 	ele = list()
@@ -584,6 +587,7 @@ def getGPXDataFrame(gpxfile, file_type):
 					speed.append(0)
 				#print('Point at ({0},{1}) -> ({2},{3})'.format(point.latitude, point.longitude, point.elevation, point.time))
 				#print (type(point.latitude), type(point.longitude), type(point.elevation), type(point.time))
+
 	speed[0] = speed[1]
 	columns = {'lat':lat,'lon':lon,'ele':ele,'time':time,'speed':speed}
 	points = pd.DataFrame(columns)
@@ -663,7 +667,7 @@ def alignGPSandLatency(latency_data, gps_data,option):
 	gps_with_latency = gps_data.reindex(latency_data.index.tolist())
 	#print("tdi after crop: "+str(len(track_datapoints_crop.index.tolist())))
 
-	#
+	#when there is no start or end frame of data
 	if( pd.isna(gps_with_latency.iloc[0]['lat']) ):
 		#print("El primera es NaN")
 		gps_with_latency.at[start_time,'lat']=gps_data.at[gps_index[0],'lat']
@@ -722,8 +726,8 @@ def alignGPSandLatency(latency_data, gps_data,option):
 	return gps_with_latency
 
 # get the number of antennas inside a circle of radius 'r' in meter, centered on 'p' in lat,lon
-# 'a' is a dataframe containing the position of all antennas in lat,lon
-# the distance is calculated using a simple approximation: the eart is flat  between the 2 points
+# 'a' is a data frame containing the position of all antennas in lat,lon
+# the distance is calculated using a simple approximation: the earth is flat  between the 2 points
 def getSurroundingAntennas(p, r, a):
 	count = 0
 
@@ -821,7 +825,14 @@ def drawWebMap(data, cam_num, ant, col):
 	# now draw 4G antennas
 	ax.scatter(ant['lon'], ant['lat'], color = 'blue', marker='^', s = s2)
 
-	return fig, ax 
+	return fig, ax
+
+def customCmap():
+	new_color = list()
+	for i in range(256):
+		new_color.append([i/255, 0, 1-i/255, 1.0])
+	new_cmap = mcolors.ListedColormap(new_color)
+	return new_cmap
 
 opt = 1   #option 2 = get max latency, 0 min lat, 1 avg lat
 #name = "inferno_r"
@@ -854,8 +865,11 @@ if __name__ == '__main__':
 		save_dir = save_dir + element+"/"
 	print("Save dir:"+save_dir)
 
+	# customize color map
+	name = customCmap()
+
 	# use this cmap
-	name = args.q
+	#name = args.q
 
 	print (" - Importing Data...")
 
@@ -880,9 +894,13 @@ if __name__ == '__main__':
 		if args.x == "3":   # newest format 
 			print (" - Received format 3")
 			log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]				# newest format 20181214
-		#if args.x == "4":
-		#	log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]	
-
+		if args.x == "4":
+		#	log_raw.columns = ["id","seq","send_time","recv_time","send_UTC", "recv_UTC","send_raw_UTC","recv_raw_UTC","local_send_time","size", "lon", "lat","sat"]
+			log_raw.columns = ["id","seq","timestamp_streamer_grab","timestamp_streamer_send","timestamp_streamer_recv",
+							   "timestamp_gps_grab","timestamp_gps_send","timestamp_gps_recv","timestamp_player_grab",
+							   "timestamp_player_send","timestamp_player_recv","timestamp_gps_grab_raw","timestamp_gps_send_raw",
+							   "timestamp_gps_recv_raw","offset_gps_streamer","offset_gps_player","longitude","latitude",
+							   "number_of_satellites","packet_size"]
 
 
 	print("\n - Cleaning")
@@ -897,11 +915,13 @@ if __name__ == '__main__':
 		print("   and Parsing...")
 		#print(clog.dtypes)
 		#clog = convertData(clog, [int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,int,float,float,int,int])
+
 		print("   done!")
 		# copy necessary data to make gps file later
 		gps_data_s = pd.DataFrame()
 		gps_data_s['longitude'] = clog['longitude']
 		gps_data_s['latitude'] = clog['latitude']
+
 		#gps_data['send_UTC'] = log_raw['send_UTC']
 
 		#  drop lon, lat columns that will be imported afterwards
@@ -933,7 +953,7 @@ if __name__ == '__main__':
 
 	#print clog.head(10)
 
-
+	# Calculate Time
 	# c = offset UTC (+0900) in milliseconds
 	c = 32400000
 	if 'time' not in clog.columns:
@@ -942,15 +962,16 @@ if __name__ == '__main__':
 		if args.x == "3":
 			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['send_UTC'])
 		if args.x == "4":
-			clog["time"] = map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['timestamp_gps_grab'])
+			clog["time"] = list(map(lambda x: pd.Timestamp(x+c,unit="ms").ceil(freq='s'), clog['timestamp_gps_grab']))
 			#print(clog.head(10))
-		
+
 	gps_data_s['time'] = clog['time'].copy()
 
 	# following will group data by index. This is because for a new data format
 	# there can be multiple gps locations for the same timestamp, which leads to
 	# repeated elements in the index. So we take the location to be the average
 	# of the gps locations for each timestamp
+
 	gps_data_s = gps_data_s.groupby('time').mean().sort_index()
 	gps_data_s = gps_data_s.reset_index()
 	#print(gps_data_s.head(10))
@@ -1048,6 +1069,7 @@ if __name__ == '__main__':
 	# draw Offset GPS Player Histogram
 	data_dic = drawOffsetGPSPlayerHistogram(clog,data_dic,1)
 	#print(data_dic)
+	# draw Number of Satelites Histogram
 	print(" - Number of Satellites Histogram")
 	unit = ['Number of Satellite','Count']
 	data_dic = graphHistogram([clog['number_of_satellites']],1,['r'],['Number of Satellites Histogram'],unit,args.t,save_dir,data_dic)
@@ -1069,8 +1091,9 @@ if __name__ == '__main__':
 	# or in the same file
 	if(args.x == "1" or args.x=="2"):
 		gpx_file = open(args.g, 'r')
-		track_datapoints = getGPXDataFrame(gpx_file,args.x)
+		#track_datapoints = getGPXDataFrame(gpx_file,args.x)
 	if(args.x == "3" or args.x == "4"):
+
 		track_datapoints = getGPXDataFrame(gps_data_s,args.x)
 	#print (track_datapoints.head())
 
@@ -1162,6 +1185,7 @@ if __name__ == '__main__':
 
 	# need this file for other calculations ... cannot be inside if()
 	buildings = gpd.read_file("maps/buildings/Buildings_University2.geojson")
+
 	# calculate display region
 	margin_epsg4326 = 0.005  # the number of degrees by which the search area will be extended
 	margin = 500.0
@@ -1243,26 +1267,26 @@ if __name__ == '__main__':
 
 
 
-		gps_lat_all['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_all['lon'])
-		gps_lat_all['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_all['lat'])
+		gps_lat_all['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_all['lon']))
+		gps_lat_all['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_all['lat']))
 
-		gps_lat_cam0['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon'])
-		gps_lat_cam0['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat'])
+		gps_lat_cam0['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam0['lon']))
+		gps_lat_cam0['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam0['lat']))
 
-		gps_lat_cam1['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon'])
-		gps_lat_cam1['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat'])
+		gps_lat_cam1['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam1['lon']))
+		gps_lat_cam1['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam1['lat']))
 
-		gps_lat_cam2['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon'])
-		gps_lat_cam2['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat'])
+		gps_lat_cam2['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam2['lon']))
+		gps_lat_cam2['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam2['lat']))
 
-		gps_lat_cam3['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon'])
-		gps_lat_cam3['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat'])
+		gps_lat_cam3['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam3['lon']))
+		gps_lat_cam3['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam3['lat']))
 
-		gps_lat_cam4['x_merc'] = map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon'])
-		gps_lat_cam4['y_merc'] = map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat'])
+		gps_lat_cam4['x_merc'] = list(map(lambda x: lon_to_mercator(x),gps_lat_cam4['lon']))
+		gps_lat_cam4['y_merc'] = list(map(lambda x: lat_to_mercator(x),gps_lat_cam4['lat']))
 
-		antenna['x_merc'] = map(lambda x: lon_to_mercator(x),antenna['lon'])
-		antenna['y_merc'] = map(lambda x: lat_to_mercator(x),antenna['lat'])
+		antenna['x_merc'] = list(map(lambda x: lon_to_mercator(x),antenna['lon']))
+		antenna['y_merc'] = list(map(lambda x: lat_to_mercator(x),antenna['lat']))
 
 
 
@@ -1297,7 +1321,8 @@ if __name__ == '__main__':
 	   	# 	ax.annotate(txt, (z[i], y[i]))
 
 	   	# now annotate sequece
-	   	map(lambda seq,x,y: track1.annotate("{:.0f}".format(seq),(x,y), fontsize= 'medium', fontweight = 'bold', rotation = 30),seq_labels['image_sequence_number'],seq_labels['x_merc'],seq_labels['y_merc'])
+		map(lambda seq, x, y: track1.annotate("{:.0f}".format(seq), (x, y), fontsize='medium', fontweight='bold',rotation=30),
+			seq_labels['image_sequence_number'], seq_labels['x_merc'], seq_labels['y_merc'])
 
 		track1.legend(loc='upper left', shadow=True, fontsize='x-large')
 		#admin.plot(ax=map5ax1, color='white', edgecolor='black',alpha = 0.2)
@@ -1459,6 +1484,15 @@ if __name__ == '__main__':
 			map3.savefig(save_dir+file_name+"_latency_map_cam3.jpg")
 			map4.savefig(save_dir+file_name+"_latency_map_cam4.jpg")
 
+		# data_dic["encoding_latency_map_all"] = file_name+"_latency_map_all.jpg"
+		# data_dic["encoding_latency_map_cam0"] = file_name+"_latency_map_cam0.jpg"
+		# data_dic["encoding_latency_map_cam1"] = file_name+"_latency_map_cam1.jpg"
+		# data_dic["encoding_latency_map_cam2"] = file_name+"_latency_map_cam2.jpg"
+		# data_dic["encoding_latency_map_cam3"] = file_name+"_latency_map_cam3.jpg"
+		# data_dic["encoding_latency_map_cam4"] = file_name+"_latency_map_cam4.jpg"
+		#
+
+
 
 		data_dic["lat_gps_all"] = file_name+"_latency_map_all.jpg"
 		data_dic["lat_gps_cam0"] = file_name+"_latency_map_cam0.jpg"
@@ -1602,7 +1636,7 @@ if __name__ == '__main__':
 		r_names = ["r4", "r3", "r2", "r1", "r0"]
 		for (rname, r) in zip(r_names,r_search):
 			#data_dic['r']=r
-			gps_lat_all['antennas'] = map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon'])
+			gps_lat_all['antennas'] = list(map(lambda x,y: getSurroundingAntennas([x,y], r, antenna),gps_lat_all['lat'],gps_lat_all['lon']))
 
 			ana3 = plt.figure(figsize=(20,10))
 			ana3ax1 = ana3.add_subplot(1,1,1)
@@ -1653,7 +1687,7 @@ if __name__ == '__main__':
 		"""
 
 		#get the number of surroinding buildings for each point
-		gps_lat_all['buildings'] = map(lambda x,y: getSurroundingBuildings([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
+		gps_lat_all['buildings'] = list(map(lambda x,y: getSurroundingBuildings([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon']))
 
 		ana4 = plt.figure(figsize=(20,10))
 		ana4ax1 = ana4.add_subplot(1,1,1)
@@ -1668,7 +1702,7 @@ if __name__ == '__main__':
 		print("\n---------- DRAW LATENCY VS AVERAGE BUILDING HEIGHT --------------")
 
 
-		gps_lat_all['avg_build_height'] = map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon'])
+		gps_lat_all['avg_build_height'] = list(map(lambda x,y: getSurroundingBuilding_AvgHeight([x,y], r, b_cents),gps_lat_all['lat'],gps_lat_all['lon']))
 
 		ana5 = plt.figure(figsize=(20,10))
 		ana5ax1 = ana5.add_subplot(1,1,1)
